@@ -7,6 +7,8 @@ from fastapi import FastAPI, HTTPException, Request
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 
+from utils.enum_converter import convert_to_korean
+
 app = FastAPI()
 
 # 모델 로드
@@ -111,21 +113,29 @@ def rule_based_similarity(user1: dict, user2: dict) -> float:
 
 
 # 사용자 등록
-@app.post("/embedding/register")
-async def register_user(request: Request):
+@app.post("/api/v1/users")
+async def register_user(user: dict, request: Request):
     try:
         start_time = time.time()
-        data = await request.json()
-        userId = str(data.get("userId"))
 
+        # 1. 사용자 데이터 수신 및 ID 추출
+        user = await request.json()
+        userId = str(user.get("userId"))
+
+        # 2. ID 중복 체크
         result = user_collection.get(ids=[userId])
         if result and userId in result.get("ids", []):
             raise HTTPException(
                 status_code=400, detail=f"User ID {userId} already exists"
             )
 
-        text = convert_user_to_text(data)
+        # 3. Enum → 한국어 변환
+        user = convert_to_korean(user)
+
+        # 4. 텍스트 임베딩
+        text = convert_user_to_text(user)
         embedding = model.encode(text).tolist()
+
         # 필드별 임베딩 추가
         fields = [
             "emailDomain",
@@ -141,15 +151,18 @@ async def register_user(request: Request):
             "hobbies",
         ]
 
-        field_embeddings = embed_fields(data, fields)
+        field_embeddings = embed_fields(user, fields)
 
+        # 6. 메타데이터 구성 (원본 사용)
         metadata = {
-            k: ", ".join(v) if isinstance(v, list) else v for k, v in data.items()
+            k: ", ".join(v) if isinstance(v, list) else v for k, v in user.items()
         }
         metadata["field_embeddings"] = json.dumps(field_embeddings)
 
+        # 7. 사용자 등록
         user_collection.add(ids=[userId], embeddings=[embedding], metadatas=[metadata])
 
+        # 8. 모든 사용자와의 유사도 계산
         all_users = user_collection.get(include=["embeddings", "metadatas"])
         all_ids = all_users["ids"]
         all_embeddings = np.array(all_users["embeddings"])
@@ -162,11 +175,12 @@ async def register_user(request: Request):
             if other_id == userId:
                 continue
             cosine_sim = float(sims[i])
-            rule_sim = rule_based_similarity(data, all_metas[i])
+            rule_sim = rule_based_similarity(user, all_metas[i])
             final_sim = 0.7 * cosine_sim + 0.3 * rule_sim
             similarities[other_id] = final_sim
             update_similarity_for_user(other_id)
 
+        # 9. 유사도 저장
         similarity_collection.upsert(
             ids=[userId],
             embeddings=[embedding],
@@ -181,7 +195,7 @@ async def register_user(request: Request):
 
 
 # 사용자 추천
-@app.get("/tuning")
+@app.get("/api/v1/tuning/{userId}")
 async def tuning(userId: str, category: str = "all"):
     result = similarity_collection.get(ids=[userId], include=["metadatas"])
     if not result.get("metadatas"):
