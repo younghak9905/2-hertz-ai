@@ -1,0 +1,13 @@
+# FastAPI 프레임워크
+fastapi
+
+# ASGI 서버
+uvicorn[standard]
+
+# Pydantic 모델링
+pydantic
+
+# 임베딩 및 벡터 연산
+sentence-transformers
+scikit-learn
+numpy
