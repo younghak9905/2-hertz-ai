@@ -2,7 +2,7 @@
 
 from typing import Dict, List, Optional
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class EmbeddingRegister(BaseModel):
@@ -11,7 +11,9 @@ class EmbeddingRegister(BaseModel):
     """
 
     userId: int = Field(..., description="사용자 식별용 ID")
-    emailDomain: EmailStr = Field(..., description="유저간 조직 구분용 이메일 도메인")
+    emailDomain: str = Field(
+        ..., description="유저간 조직 구분용 이메일 도메인 (예: kakaotech.com)"
+    )
     gender: str = Field(..., description="성별")
     ageGroup: str = Field(..., description="연령대")
     MBTI: str = Field(..., description="MBTI 분류")
@@ -30,9 +32,9 @@ class EmbeddingRegister(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
-                # "userId": 1,
-                "emailDomain": "user1@gmail.com",
-                "gender": "MALE",
+                "userId": 1,
+                "emailDomain": "kakaotech.com",
+                "gender": "남자",
                 "ageGroup": "AGE_20S",
                 "MBTI": "ESTP",
                 "religion": "NON_RELIGIOUS",
