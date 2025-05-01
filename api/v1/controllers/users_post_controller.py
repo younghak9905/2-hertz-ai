@@ -25,15 +25,15 @@ async def create_user(user_data: EmbeddingRegister) -> Dict:
     try:
         # 모의 응답 구현 (실제 서비스 연결 시 교체될 예정)
         # 실제 구현에서는 아래 코드를 주석 해제하고 모의 응답 코드를 제거
-        # return await register_user(user_data)
+        # TODO:return await register_user(user_data)
 
         # 사용자 ID 중복 체크 시뮬레이션 (실제로는 서비스 레이어에서 처리)
         if user_data.userId == 999:  # 이미 존재하는 ID로 가정
             raise HTTPException(
                 status_code=409,
                 detail={
-                    "code": "EMBEDDING_REGISTER_CONFLICT",
-                    "message": f"User with ID {user_data.userId} already exists",
+                    "code": "EMBEDDING_CONFLICT_DUPLICATE_ID",
+                    "data": None,
                 },
             )
 
@@ -41,15 +41,15 @@ async def create_user(user_data: EmbeddingRegister) -> Dict:
         print(f"Creating user with data: {user_data.model_dump()}")
         return {"code": "EMBEDDING_REGISTER_SUCCESS", "data": None}
     except HTTPException:
-        # HTTP 예외는 그대로 전달
+        # HTTP 예외(400)는 그대로 전달
         raise
     except Exception as e:
-        # 로깅 추가 (실제 구현에서는 logger 사용)
+        # TODO:로깅 추가 (실제 구현에서는 logger 사용)
         print(f"Error in user registration controller: {str(e)}")
         raise HTTPException(
             status_code=500,
             detail={
-                "code": "EMBEDDING_REGISTER_INTERNAL_SERVER_ERROR",
-                "message": f"Internal server error: {str(e)}",
+                "code": "EMBEDDING_REGISTER_SERVER_ERROR",
+                "data": None,
             },
         )
