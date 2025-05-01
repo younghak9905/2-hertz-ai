@@ -30,9 +30,9 @@ class EmbeddingRegister(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
-                "userId": 1,
+                # "userId": 1,
                 "emailDomain": "user1@gmail.com",
-                "gender": "남자",
+                "gender": "MALE",
                 "ageGroup": "AGE_20S",
                 "MBTI": "ESTP",
                 "religion": "NON_RELIGIOUS",
