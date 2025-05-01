@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
+"""
+애플리케이션 초기화 및 구성 / API 서버 시작점 역할 수행
+애플리케이션 인스턴스 생성, 라우터 등록, 환경 설정 로드 등 담당
+"""
 
-# 애플리케이션 초기화 및 구성 / 서버 시작점 역할 수행
 
 import os
 
@@ -12,9 +15,10 @@ from fastapi.responses import RedirectResponse
 from api.v1.endpoints.tuning_router import TuningRouter
 from api.v1.endpoints.users_post_router import UserPostRouter
 
+# .env 파일에서 환경 변수 로드
 load_dotenv()
 
-# FastAPI 앱 인스턴스 생성
+# FastAPI 앱 인스턴스 생성 (Swagger UI 문서에 표시될 메타데이터 포함)
 app = FastAPI(
     title="TUNING API",
     description="조직 내부 사용자 간의 자연스럽고 부담 없는 소통을 돕는 소셜 매칭 서비스 API",
@@ -22,12 +26,12 @@ app = FastAPI(
 )
 
 
-# 라우터 등록
+# 라우터 등록 - API를 기능별로 모듈화
 app.include_router(UserPostRouter().router)
 app.include_router(TuningRouter().router)
 
 
-# 개발 환경에서 Root Path 접속 시, swagger 페이지로 Redirect
+# 루트 경로 핸들러 - 개발 환경에서는 API 문서(Swagger)로 리다이렉트, 프로덕션에서는 접근 제한
 @app.get("/")
 async def root():
     env = os.getenv("ENVIRONMENT")
