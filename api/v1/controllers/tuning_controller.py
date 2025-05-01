@@ -1,4 +1,7 @@
-# 매칭 관련 컨트롤러 (사용자 간 유사도 기반 매칭 추천)
+"""
+매칭 추천 기능을 담당하는 컨트롤러
+사용자 간 유사도 기반 매칭을 처리하고 결과를 반환
+"""
 
 from typing import Dict, List, Optional
 
@@ -26,13 +29,13 @@ async def get_tuning_matches(user_id: int) -> Dict:
         # 실제 구현에서는 아래 코드를 주석 해제하고 모의 응답 코드를 제거
         # TODO:return await get_matching_users(user_id)
 
-        # 테스트용 샘플 데이터 - 항상 매칭 결과가 있는 경우
+        # 테스트용 샘플 데이터 - ID가 짝수인 경우 매칭 결과가 있음
         if user_id % 2 == 0:
             return {
                 "code": "TUNING_SUCCESS",
                 "data": {"userIdList": [30, 1, 5, 6, 99, 56]},
             }
-        # 매칭 결과가 없는 경우
+        # ID가 홀수인 경우 매칭 결과가 없음 (매칭 가능한 사용자 없음)
         else:
             return {"code": "TUNING_SUCCESS_BUT_NO_MATCH", "data": None}
     except HTTPException:

@@ -1,6 +1,9 @@
-# 매칭 관련 데이터 모델 (요청/응답 구조)
+"""
+매칭 관련 데이터 모델 정의
+사용자 간 매칭 요청 및 응답에 사용되는 Pydantic 모델
+"""
 
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -15,26 +18,12 @@ class TuningMatching(BaseModel):
     model_config = ConfigDict(json_schema_extra={"example": {"userId": 1}})
 
 
-# v2 스키마
-# class CategoryTuningMatching(BaseModel):
-#     """
-#     카테고리별 튜닝(매칭) 요청 모델
-#     """
-
-#     userId: int = Field(..., description="매칭할 사용자의 ID")
-#     category: str = Field(..., description="매칭 카테고리")
-
-#     model_config = ConfigDict(
-#         json_schema_extra={"example": {"userId": 1, "category": "FRIEND"}}
-#     )
-
-
 class TuningResponse(BaseModel):
     """
     튜닝(매칭) 응답 모델
     """
 
-    code: str = Field(..., description="응답 코드")
+    code: str = Field(..., description="응답 코드 (매칭 성공 여부)")
     data: Optional[Dict[str, List[int]]] = Field(
         None, description="매칭된 사용자 ID 목록"
     )
