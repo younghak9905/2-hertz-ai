@@ -29,7 +29,7 @@ ENUM_MAPPINGS = {
     },
     "drinking": {
         "NEVER": "전혀 안 마심",
-        "ONLY_IF_NEEDED": "피할 수 없을 때만",
+        "ONLY_IF_NEEDED": "필요할 때만",
         "SOMETIMES": "가끔",
         "OFTEN": "자주",
         "TRYING_TO_QUIT": "금주중",
