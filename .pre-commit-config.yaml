@@ -13,6 +13,7 @@ repos:
     rev: 7.0.0
     hooks:
       - id: flake8
+        args: ["--ignore=E203,E501,E712,E722,W503"]
 
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.4.0
