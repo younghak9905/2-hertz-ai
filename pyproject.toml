@@ -23,3 +23,5 @@ line_length = 88
 ensure_newline_before_comments = true
 skip = ["migrations"]
 
+[tool.pytest]
+pythonpath = "."
