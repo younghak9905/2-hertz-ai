@@ -6,7 +6,6 @@ import numpy as np
 from fastapi import FastAPI, HTTPException, Request
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
-
 from utils.enum_converter import convert_to_korean
 
 app = FastAPI()

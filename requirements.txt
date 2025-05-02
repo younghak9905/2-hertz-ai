@@ -1,13 +1,14 @@
 # FastAPI 프레임워크
-fastapi
+fastapi==0.115.12
 
 # ASGI 서버
-uvicorn[standard]
+uvicorn[standard]==0.34.2
 
 # Pydantic 모델링
-pydantic
+pydantic==2.11.4
+python-dotenv==1.1.0
 
 # 임베딩 및 벡터 연산
-sentence-transformers
-scikit-learn
-numpy
+sentence-transformers==4.1.0
+scikit-learn==1.6.1
+numpy==2.2.5

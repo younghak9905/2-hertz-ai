@@ -3,7 +3,7 @@
 사용자 간 매칭 요청 및 응답에 사용되는 Pydantic 모델
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Dict, List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 

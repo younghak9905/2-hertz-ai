@@ -1,8 +1,5 @@
-from typing import Dict, List, Optional
-
 import pytest
 from pydantic import ValidationError
-
 from schemas.tuning_schema import TuningMatching, TuningResponse
 
 

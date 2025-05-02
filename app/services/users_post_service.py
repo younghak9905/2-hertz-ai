@@ -3,12 +3,11 @@ import json
 import time
 
 import numpy as np
-from fastapi import HTTPException
-
 from core.embedding import convert_user_to_text, embed_fields
 from core.enum_process import convert_to_korean
 from core.matching_score import compute_matching_score
 from core.vector_database import similarity_collection, user_collection
+from fastapi import HTTPException
 
 
 def safe_join(value):
