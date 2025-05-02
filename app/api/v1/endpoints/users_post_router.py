@@ -4,10 +4,7 @@
 /api 요청을 처리하고, 비즈니스 로직 실행을 위해 컨트롤러와 연결
 """
 
-from typing import Dict
-
 from fastapi import APIRouter, Body
-
 from schemas.user_schema import BaseResponse, EmbeddingRegister
 
 from ..controllers import users_post_controller

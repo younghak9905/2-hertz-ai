@@ -1,5 +1,4 @@
 # tests/test_enum_converter.py
-import pytest
 
 from core.enum_process import convert_to_korean
 

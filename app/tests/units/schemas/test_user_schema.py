@@ -1,6 +1,5 @@
 import pytest
 from pydantic import ValidationError
-
 from schemas.user_schema import BaseResponse, EmbeddingRegister, ErrorResponse
 
 

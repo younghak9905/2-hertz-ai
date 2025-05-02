@@ -4,10 +4,7 @@
 /api 요청을 처리하고, 비즈니스 로직 실행을 위해 컨트롤러와 연결
 """
 
-from typing import Optional
-
 from fastapi import APIRouter, Query
-
 from schemas.tuning_schema import TuningResponse
 
 from ..controllers import tuning_controller

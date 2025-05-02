@@ -3,7 +3,7 @@
 사용자 간 유사도 기반 매칭을 처리하고 결과를 반환
 """
 
-from typing import Dict, List, Optional
+from typing import Dict
 
 from fastapi import HTTPException
 

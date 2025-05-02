@@ -7,9 +7,11 @@ from typing import Dict
 
 from fastapi import HTTPException
 
+# from models.sbert_loader import model  # 또는 전역 모델 객체 주입
+from schemas.user_schema import EmbeddingRegister
+
 # TODO: 실제 서비스 연결
 # from services.users_post_service import register_user
-from schemas.user_schema import EmbeddingRegister
 
 
 async def create_user(user_data: EmbeddingRegister) -> Dict:
@@ -28,7 +30,6 @@ async def create_user(user_data: EmbeddingRegister) -> Dict:
     try:
         # 모의 응답 구현 (실제 서비스 연결 시 교체될 예정)
         # 실제 구현에서는 아래 코드를 주석 해제하고 모의 응답 코드를 제거
-        # TODO:return await register_user(user_data)
 
         # 사용자 ID 중복 체크 시뮬레이션 (실제로는 서비스 레이어에서 처리)
         if user_data.userId == 999:  # 이미 존재하는 ID로 가정
