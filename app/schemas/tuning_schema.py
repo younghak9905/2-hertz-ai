@@ -3,31 +3,29 @@
 사용자 간 매칭 요청 및 응답에 사용되는 Pydantic 모델
 """
 
-from typing import Dict, List, Optional
+from typing import List, Optional
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, Field
 
 
 class TuningMatching(BaseModel):
     """
     튜닝(매칭) 요청 모델
-    """
 
     userId: int = Field(..., description="매칭할 사용자의 ID")
 
     model_config = ConfigDict(json_schema_extra={"example": {"userId": 1}})
+    """
+
+    userIdList: List[int]
 
 
 class TuningResponse(BaseModel):
+    code: str = Field(..., description="응답 코드 (매칭 성공 여부)")
+    data: Optional[TuningMatching] = Field(None, description="매칭된 사용자 ID 목록")
+
     """
     튜닝(매칭) 응답 모델
-    """
-
-    code: str = Field(..., description="응답 코드 (매칭 성공 여부)")
-    data: Optional[Dict[str, List[int]]] = Field(
-        None, description="매칭된 사용자 ID 목록"
-    )
-
     model_config = ConfigDict(
         json_schema_extra={
             "example": [
@@ -39,6 +37,8 @@ class TuningResponse(BaseModel):
             ]
         }
     )
+
+    """
 
 
 # v2 스키마
