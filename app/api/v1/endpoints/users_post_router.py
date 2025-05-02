@@ -5,7 +5,8 @@
 """
 
 from fastapi import APIRouter, Body
-from schemas.user_schema import BaseResponse, EmbeddingRegister
+
+from app.schemas.user_schema import BaseResponse, EmbeddingRegister
 
 from ..controllers import users_post_controller
 
@@ -21,6 +22,17 @@ class UserPostRouter:
         self.router = APIRouter(prefix="/api", tags=["users"])
         # 엔드포인트 등록 (/api/v1/users)
         self.router.add_api_route("/v1/users", self.create_user, methods=["POST"])
+
+        self.router.add_api_route("/v1/users", self.db_user_list, methods=["GET"])
+        self.router.add_api_route(
+            "/v1/similarities", self.db_similaritiy_list, methods=["GET"]
+        )
+
+    async def db_user_list(self):
+        return await users_post_controller.db_user_list()
+
+    async def db_similaritiy_list(self):
+        return await users_post_controller.db_similaritiy_list()
 
     async def create_user(
         self, user_data: EmbeddingRegister = Body(..., description="사용자 등록 데이터")

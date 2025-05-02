@@ -3,11 +3,13 @@ import json
 import time
 
 import numpy as np
-from core.embedding import convert_user_to_text, embed_fields
-from core.enum_process import convert_to_korean
-from core.matching_score import compute_matching_score
-from core.vector_database import similarity_collection, user_collection
 from fastapi import HTTPException
+
+from app.core.embedding import convert_user_to_text, embed_fields
+from app.core.enum_process import convert_to_korean
+from app.core.matching_score import compute_matching_score
+from app.core.vector_database import similarity_collection, user_collection
+from app.models.sbert_loader import model
 
 
 def safe_join(value):
@@ -130,7 +132,7 @@ def update_similarity_for_users(user_id: str):
         )
 
 
-async def register_user(user: dict, model) -> dict:
+async def register_user(user: dict) -> dict:
     start_time = time.time()
     user_id = str(user.get("userId"))
 
