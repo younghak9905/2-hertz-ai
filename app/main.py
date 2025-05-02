@@ -7,11 +7,12 @@
 
 import os
 
-from api.v1.endpoints.tuning_router import TuningRouter
-from api.v1.endpoints.users_post_router import UserPostRouter
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import RedirectResponse
+
+from app.api.v1.endpoints.tuning_router import TuningRouter
+from app.api.v1.endpoints.users_post_router import UserPostRouter
 
 # .env 파일에서 환경 변수 로드
 load_dotenv()

@@ -5,7 +5,8 @@
 """
 
 from fastapi import APIRouter, Query
-from schemas.tuning_schema import TuningResponse
+
+from app.schemas.tuning_schema import TuningResponse
 
 from ..controllers import tuning_controller
 
