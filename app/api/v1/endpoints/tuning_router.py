@@ -21,10 +21,15 @@ class TuningRouter:
         # 라우터 생성
         self.router = APIRouter(prefix="/api", tags=["tuning"])
         # 엔드포인트 등록 (/api/v1/tuning)
-        self.router.add_api_route("/v1/tuning", self.get_tuning, methods=["GET"])
+        self.router.add_api_route(
+            "/v1/tuning",
+            self.get_tuning,
+            methods=["GET"],
+            response_model=TuningResponse,
+        )
 
     async def get_tuning(
-        self, user_id: int = Query(..., description="매칭할 사용자의 ID", gt=0)
+        self, userId: int = Query(..., description="매칭할 사용자의 ID", gt=0)
     ) -> TuningResponse:
         """
         사용자 ID 기반 매칭 추천 제공
@@ -49,4 +54,4 @@ class TuningRouter:
         }
         ```
         """
-        return await tuning_controller.get_tuning_matches(user_id)
+        return await tuning_controller.get_tuning_matches(userId)

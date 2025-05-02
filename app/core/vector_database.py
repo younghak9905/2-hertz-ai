@@ -16,6 +16,18 @@ user_collection = chroma_client.get_or_create_collection("user_profiles")
 similarity_collection = chroma_client.get_or_create_collection("user_similarities")
 
 
+async def get_user_data(user_id: str):
+    return user_collection.get(ids=[user_id], include=["metadatas"])
+
+
+async def get_users_data(user_ids: list[str]):
+    return user_collection.get(ids=user_ids, include=["metadatas"])
+
+
+async def get_user_similarities(user_id: str):
+    return similarity_collection.get(ids=user_id, include=["metadatas"])
+
+
 # --- 추후에 필요한 항목만 가져오도록 수정하기
 
 
