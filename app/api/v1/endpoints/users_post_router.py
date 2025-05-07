@@ -21,7 +21,14 @@ class UserPostRouter:
         # 라우터 생성
         self.router = APIRouter(prefix="/api", tags=["users"])
         # 엔드포인트 등록 (/api/v1/users)
-        self.router.add_api_route("/v1/users", self.create_user, methods=["POST"])
+        self.router.add_api_route(
+            "/v1/users",
+            self.create_user,
+            methods=["POST"],
+            response_model=BaseResponse,
+            summary="사용자 등록",
+            description="사용자 등록 후 임베딩 벡터를 생성합니다.",
+        )
 
         self.router.add_api_route("/v1/users", self.db_user_list, methods=["GET"])
         self.router.add_api_route(
