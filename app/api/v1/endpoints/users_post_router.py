@@ -30,16 +30,28 @@ class UserPostRouter:
             description="사용자 등록 후 임베딩 벡터를 생성합니다.",
         )
 
-        self.router.add_api_route("/v1/users", self.db_user_list, methods=["GET"])
         self.router.add_api_route(
-            "/v1/similarities", self.db_similaritiy_list, methods=["GET"]
+            "/v1/users",
+            self.db_user_list,
+            methods=["GET"],
+            response_model=BaseResponse,
+            summary="사용자 조회(내부 확인용)",
+            description="벡터DB user_collection에 등록된 사용자 리스트를 조회합니다.",
+        )
+        self.router.add_api_route(
+            "/v1/similarities",
+            self.db_similarity_list,
+            methods=["GET"],
+            response_model=BaseResponse,
+            summary="매칭 스코어 조회(내부 확인용)",
+            description="벡터DB-similarity_collection에 등록된 모든 매칭 스코어를 조회합니다.",
         )
 
-    async def db_user_list(self):
+    async def db_user_list(self) -> BaseResponse:
         return await users_post_controller.db_user_list()
 
-    async def db_similaritiy_list(self):
-        return await users_post_controller.db_similaritiy_list()
+    async def db_similarity_list(self) -> BaseResponse:
+        return await users_post_controller.db_similarity_list()
 
     async def create_user(
         self, user_data: EmbeddingRegister = Body(..., description="사용자 등록 데이터")
@@ -62,7 +74,7 @@ class UserPostRouter:
         ```json
         {
           "code": "EMBEDDING_REGISTER_CONFLICT",
-          "message": "User with ID 999 already exists"
+          "data": null
         }
         ```
         """

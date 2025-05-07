@@ -19,12 +19,26 @@ logger = logging.getLogger(__name__)
 
 async def db_user_list():
     result = await list_users()
-    return {"ids": result.get("ids", []), "count": len(result.get("ids", []))}
+    return {
+        "code": "REGISTERD_ID_CHECKED",
+        "data": {
+            "ids": result.get("ids", []),
+            "count": len(result.get("ids", [])),
+            # "metadatas": result.get("metadatas", []),
+        },
+    }
 
 
-async def db_similaritiy_list():
+async def db_similarity_list():
     result = await list_similarities()
-    return {"ids": result.get("ids", []), "count": len(result.get("ids", []))}
+    return {
+        "code": "REGISTERD_SIMILARITY_CHECKED",
+        "data": {
+            "ids": result.get("ids", []),
+            "count": len(result.get("ids", [])),
+            "metadatas": (result.get("metadatas", [])),
+        },
+    }
 
 
 async def create_user(user_data: EmbeddingRegister) -> Dict:
