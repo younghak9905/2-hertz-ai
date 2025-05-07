@@ -11,6 +11,8 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import RedirectResponse
 
+from app.api.v1.endpoints.health_router import HealthRouter
+from app.api.v1.endpoints.monitoring_router import PerformanceRouter
 from app.api.v1.endpoints.tuning_router import TuningRouter
 from app.api.v1.endpoints.users_post_router import UserPostRouter
 
@@ -28,6 +30,8 @@ app = FastAPI(
 # 라우터 등록 - API를 기능별로 모듈화
 app.include_router(UserPostRouter().router)
 app.include_router(TuningRouter().router)
+app.include_router(PerformanceRouter().router)
+app.include_router(HealthRouter().router)
 
 
 # 루트 경로 핸들러 - 개발 환경에서는 API 문서(Swagger)로 리다이렉트, 프로덕션에서는 접근 제한
