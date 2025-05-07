@@ -18,9 +18,40 @@ EMBEDDING_FIELDS = [
     "selfDevelopment",
     "hobbies",
 ]
+
+MBTI_COMPATIBILITY = {
+    "INTJ": ["ENFP", "ENTP"],
+    "INTP": ["ENTJ", "ENFJ"],
+    "INFJ": ["ENFP", "ENTP"],
+    "INFP": ["ENFJ", "ESFJ"],
+    "ISTJ": ["ESFP", "ESTP"],
+    "ISTP": ["ESFJ", "ENFJ"],
+    "ISFJ": ["ESTP", "ESFP"],
+    "ISFP": ["ENFJ", "ESFJ"],
+    "ENTJ": ["INFP", "INTP"],
+    "ENTP": ["INFJ", "INTJ"],
+    "ENFJ": ["INFP", "ISFP"],
+    "ENFP": ["INFJ", "INTJ"],
+    "ESTJ": ["ISFP", "ISTP"],
+    "ESTP": ["ISFJ", "ISTJ"],
+    "ESFJ": ["ISFP", "INFP"],
+    "ESFP": ["ISFJ", "ISTJ"],
+}
+
+AGE_GROUPS = {
+    "AGE_10S": 1,
+    "AGE_20S": 2,
+    "AGE_30S": 3,
+    "AGE_40S": 4,
+    "AGE_50S": 5,
+    "AGE_60S": 6,
+}
 # ---------------------- 상수 정의 ----------------------
 
+MBTI_TOTAL_WEIGHT = sum(MBTI_WEIGHTS)
 
+
+# 개별 필드 임베딩들을 평균 내어, 하나의 통합 벡터로 만드는 함수
 def average_field_embedding(field_embeddings: dict, fields: list) -> list:
     vectors = [field_embeddings.get(f) for f in fields if f in field_embeddings]
     vectors = [v for v in vectors if v is not None]
@@ -29,22 +60,48 @@ def average_field_embedding(field_embeddings: dict, fields: list) -> list:
     return np.mean(np.array(vectors), axis=0).tolist()
 
 
-# MBTI 가중 점수
-# 축 | 설명 | 예시 점수
-# E/I | 외향 ↔ 내향 | 0.5 중요
-# N/S | 직관 ↔ 감각 | 1.0 중요 (정보 수용 방식 차이)
-# F/T | 감정 ↔ 사고 | 1.0 중요 (판단 차이)
-# J/P | 판단 ↔ 인식 | 0.5 중요
-def mbti_weighted_score(mbti1, mbti2) -> float:
+# MBTI 매칭 스코어 계산
+def mbti_weighted_score(
+    mbti1: str, mbti2: str, weight_similarity: float = 0.7
+) -> float:
     if not mbti1 or not mbti2 or len(mbti1) != 4 or len(mbti2) != 4:
         return 0.0
-    match_score = sum(MBTI_WEIGHTS[i] for i in range(4) if mbti1[i] == mbti2[i])
-    return round(match_score / sum(MBTI_WEIGHTS), 6)
+
+    # 유사성 점수 (글자 일치 기반)
+    similarity_score = (
+        sum(MBTI_WEIGHTS[i] for i in range(4) if mbti1[i] == mbti2[i])
+        / MBTI_TOTAL_WEIGHT
+    )
+
+    # 궁합 점수 (상보적 궁합에 포함되면 1.0, 아니면 0.0)
+    compatibility_score = 1.0 if mbti2 in MBTI_COMPATIBILITY.get(mbti1, []) else 0.0
+
+    # 가중 평균
+    final_score = (weight_similarity * similarity_score) + (
+        (1 - weight_similarity) * compatibility_score
+    )
+    return round(final_score, 6)
 
 
 # 연령대 점수
+# 같은 연령대: 1.0
+# 한 단계 차이 (ex. 20대 vs 30대): 0.5
+# 두 단계 이상 차이 (ex. 20대 vs 40대 이상): 0.0
 def age_group_match_score(a: str, b: str) -> float:
-    return 1.0 if a == b else 0.0
+    a_val = AGE_GROUPS.get(a)
+    b_val = AGE_GROUPS.get(b)
+
+    if a_val is None or b_val is None:
+        return 0.0
+
+    diff = abs(a_val - b_val)
+
+    if diff == 0:
+        return 1.0
+    elif diff == 1:
+        return 0.5
+    else:
+        return 0.0
 
 
 # preferredPeople - personality 같을수록 높은 점수

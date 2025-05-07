@@ -34,7 +34,7 @@ class EmbeddingRegister(BaseModel):
             "example": {
                 "userId": 1,
                 "emailDomain": "kakaotech.com",
-                "gender": "남자",
+                "gender": "MALE",
                 "ageGroup": "AGE_20S",
                 "MBTI": "ESTP",
                 "religion": "NON_RELIGIOUS",
@@ -81,7 +81,7 @@ class EmbeddingRegister(BaseModel):
 #             "example": {
 #                 "userId": 1,
 #                 "emailDomain": "kakaotech.com",
-#                 "gender": "남자",
+#                 "gender": "MALE",
 #                 "ageGroup": "AGE_20S",
 #                 "MBTI": "ESTP",
 #                 "religion": "NON_RELIGIOUS",
