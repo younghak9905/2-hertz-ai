@@ -1,5 +1,5 @@
 # 로깅 유틸리티(애플리케이션 로그 관리)
-# 로깅 유틸리티(애플리케이션 로그 관리)
+
 import asyncio
 import functools
 import logging
@@ -37,6 +37,7 @@ performance_metrics = {
     "db_operation_times": {},
     "error_counts": {},
     "memory_usage_samples": [],
+    "memory_usage_by_function": {},
 }
 
 
@@ -110,9 +111,13 @@ def log_performance(operation_name: Optional[str] = None, include_memory: bool =
                 )
 
                 # 오류 카운트 증가
-                if error_type not in performance_metrics["error_counts"]:
-                    performance_metrics["error_counts"][error_type] = 0
-                performance_metrics["error_counts"][error_type] += 1
+                if op_name not in performance_metrics["error_counts"]:
+                    performance_metrics["error_counts"][op_name] = {}
+
+                if error_type not in performance_metrics["error_counts"][op_name]:
+                    performance_metrics["error_counts"][op_name][error_type] = 0
+
+                performance_metrics["error_counts"][op_name][error_type] += 1
 
                 raise
 
@@ -156,6 +161,11 @@ def log_performance(operation_name: Optional[str] = None, include_memory: bool =
                     memory_info = f", memory_diff={memory_diff:.2f}MB"
                     performance_metrics["memory_usage_samples"].append(final_memory)
 
+                    if op_name not in performance_metrics["memory_usage_by_function"]:
+                        performance_metrics["memory_usage_by_function"][op_name] = []
+                    performance_metrics["memory_usage_by_function"][op_name].append(
+                        final_memory
+                    )
                 # 성능 정보 로깅
                 logger.info(
                     f"PERF: {op_name} completed in {elapsed}s [userId={user_id}{result_info}{memory_info}]"
@@ -418,7 +428,19 @@ def get_performance_summary() -> Dict[str, Any]:
                 else 0
             ),
         }
-
+    # 함수별 메모리 사용량 요약
+    if "memory_usage_by_function" in performance_metrics:
+        summary["memory_usage_by_function"] = {}
+        for func_name, samples in performance_metrics[
+            "memory_usage_by_function"
+        ].items():
+            if samples:
+                summary["memory_usage_by_function"][func_name] = {
+                    "count": len(samples),
+                    "avg": statistics.mean(samples),
+                    "max": max(samples),
+                    "latest": samples[-1],
+                }
     return summary
 
 
