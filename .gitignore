@@ -176,3 +176,6 @@ cython_debug/
 
 # vscode settings
 .vscode
+
+# ChromaDB 디렉토리 (벡터 데이터베이스)
+chroma_db/

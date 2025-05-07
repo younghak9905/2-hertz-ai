@@ -134,17 +134,11 @@ async def register_user(user: EmbeddingRegister) -> dict:
     user_id = str(user.userId)
 
     # 중복 ID 체크
-    try:
-        existing = user_collection.get(ids=[user_id])
-        if existing and user_id in existing.get("ids", []):
-            raise HTTPException(
-                status_code=409,
-                detail={"code": "EMBEDDING_CONFLICT_DUPLICATE_ID", "data": ""},
-            )
-    except Exception as e:
+    existing = user_collection.get(ids=[user_id])
+    if existing and user_id in existing.get("ids", []):
         raise HTTPException(
-            status_code=500,
-            detail={"code": "EMBEDDING_REGISTER_SERVER_ERROR", "message": str(e)},
+            status_code=409,
+            detail={"code": "EMBEDDING_CONFLICT_DUPLICATE_ID", "data": None},
         )
 
     try:
