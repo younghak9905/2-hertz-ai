@@ -131,11 +131,7 @@ def update_similarity_for_users(user_id: str) -> dict:
 # 신규 유저 등록과 매칭 스코어 계산 처리 통합 로직
 async def register_user(user: EmbeddingRegister) -> dict:
     start_time = time.time()
-    user_id = user.userId
-
-    # Pydantic 모델 → dict 변환
-    user_dict = user.model_dump()
-    user_dict = convert_to_korean(user_dict)
+    user_id = str(user.userId)
 
     # 중복 ID 체크
     try:
@@ -152,6 +148,8 @@ async def register_user(user: EmbeddingRegister) -> dict:
         )
 
     try:
+        # Pydantic 모델 → dict 변환
+        user_dict = user.model_dump()
         user_dict = convert_to_korean(user_dict)
 
         target_fields = [
@@ -168,11 +166,11 @@ async def register_user(user: EmbeddingRegister) -> dict:
             "hobbies",
         ]
 
-        user_text = convert_user_to_text(user, target_fields)
+        user_text = convert_user_to_text(user_dict, target_fields)
         embedding = model.encode(user_text).tolist()
-        field_embeddings = embed_fields(user, target_fields, model=model)
+        field_embeddings = embed_fields(user_dict, target_fields, model=model)
 
-        metadata = {k: safe_join(v) for k, v in user.items()}
+        metadata = {k: safe_join(v) for k, v in user_dict.items()}
         metadata["field_embeddings"] = json.dumps(field_embeddings)
 
         user_collection.add(ids=[user_id], embeddings=[embedding], metadatas=[metadata])
