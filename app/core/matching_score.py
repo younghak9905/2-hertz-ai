@@ -66,10 +66,18 @@ def average_field_embedding(field_embeddings: dict, fields: list) -> list:
 def mbti_weighted_score(
     mbti1: str, mbti2: str, weight_similarity: float = 0.7
 ) -> float:
-    if not mbti1 or not mbti2 or len(mbti1) != 4 or len(mbti2) != 4:
-        return 0.0
 
-    # 유사성 점수 (글자 일치 기반)
+    # MBTI: UNKWOUN일 경우 처리
+    is_invalid1 = not mbti1 or mbti1 not in MBTI_COMPATIBILITY or len(mbti1) != 4
+    is_invalid2 = not mbti2 or mbti2 not in MBTI_COMPATIBILITY or len(mbti2) != 4
+
+    if is_invalid1 and is_invalid2:
+        return 0.5  # 둘 다 없음 → 사용자 고립 & 패널티 부여 방지
+    elif is_invalid1 or is_invalid2:
+        return 0.6  # 한 쪽만 없음 → 정보 불균형 상태지만, 매칭 기회는 열어둠
+
+    # 글자 일치 유사도 + 궁합 기반 스코어 계산 시작
+    # 유사성 점수 (유형 일치 기반)
     similarity_score = (
         sum(MBTI_WEIGHTS[i] for i in range(4) if mbti1[i] == mbti2[i])
         / MBTI_TOTAL_WEIGHT

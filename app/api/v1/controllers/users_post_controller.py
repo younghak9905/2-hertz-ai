@@ -10,8 +10,6 @@ from fastapi import HTTPException
 
 from app.core.vector_database import list_similarities, list_users
 from app.schemas.user_schema import EmbeddingRegister
-
-# TODO: 실제 서비스 연결
 from app.services.users_post_service import register_user
 
 logger = logging.getLogger(__name__)

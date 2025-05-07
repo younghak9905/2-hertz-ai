@@ -3,11 +3,14 @@
 사용자 간 유사도 기반 매칭을 처리하고 결과를 반환
 """
 
+import logging
 from typing import Dict
 
 from fastapi import HTTPException
 
 from app.services.tuning_service import get_matching_users
+
+logger = logging.getLogger(__name__)
 
 
 async def get_tuning_matches(user_id: str) -> Dict:
