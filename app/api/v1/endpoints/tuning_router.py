@@ -26,6 +26,8 @@ class TuningRouter:
             self.get_tuning,
             methods=["GET"],
             response_model=TuningResponse,
+            summary="튜닝(추천) 리스트 조회",
+            description="해당 사용자 정보를 기반으로 가장 매칭 확률이 높은 유저 리스트를 조회합니다.",
         )
 
     async def get_tuning(

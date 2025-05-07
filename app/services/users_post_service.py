@@ -12,6 +12,7 @@ from app.core.matching_score import compute_matching_score
 from app.core.vector_database import similarity_collection, user_collection
 from app.models.sbert_loader import model
 from app.schemas.user_schema import EmbeddingRegister
+from app.utils import logger
 
 
 # 메타데이터 저장 시 문자열로 반환하기 위함
@@ -129,22 +130,17 @@ def update_similarity_for_users(user_id: str) -> dict:
 
 
 # 신규 유저 등록과 매칭 스코어 계산 처리 통합 로직
+@logger.log_performance(operation_name="register_user", include_memory=True)
 async def register_user(user: EmbeddingRegister) -> dict:
     start_time = time.time()
     user_id = str(user.userId)
 
     # 중복 ID 체크
-    try:
-        existing = user_collection.get(ids=[user_id])
-        if existing and user_id in existing.get("ids", []):
-            raise HTTPException(
-                status_code=409,
-                detail={"code": "EMBEDDING_CONFLICT_DUPLICATE_ID", "data": ""},
-            )
-    except Exception as e:
+    existing = user_collection.get(ids=[user_id])
+    if existing and user_id in existing.get("ids", []):
         raise HTTPException(
-            status_code=500,
-            detail={"code": "EMBEDDING_REGISTER_SERVER_ERROR", "message": str(e)},
+            status_code=409,
+            detail={"code": "EMBEDDING_CONFLICT_DUPLICATE_ID", "data": None},
         )
 
     try:
