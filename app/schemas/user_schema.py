@@ -10,13 +10,13 @@ class EmbeddingRegister(BaseModel):
     사용자 등록 및 임베딩 생성을 위한 요청 모델
     """
 
-    userId: int = Field(..., description="사용자 식별용 ID")
+    userId: int = Field(..., description="사용자 식별용 ID", ge=1)
     emailDomain: str = Field(
         ..., description="유저간 조직 구분용 이메일 도메인 (예: kakaotech.com)"
     )
-    gender: str = Field(..., description="성별")
+    gender: str = Field(..., description="성별", pattern="^(MALE|FEMALE)$")
     ageGroup: str = Field(..., description="연령대")
-    MBTI: str = Field(..., description="MBTI 분류")
+    MBTI: str = Field(..., description="MBTI")
     religion: str = Field(..., description="종교")
     smoking: str = Field(..., description="흡연 정도")
     drinking: str = Field(..., description="음주 정도")
