@@ -1,6 +1,8 @@
 # 임베딩 모델을 통해 유저 관심사를 임베딩 벡터화
 from typing import List
 
+from app.utils import logger
+
 
 # 텍스트 생성 함수 (임베딩용 필드만 포함)
 def convert_user_to_text(data: dict, fields: List[str]) -> str:
@@ -18,6 +20,7 @@ def convert_user_to_text(data: dict, fields: List[str]) -> str:
 
 
 # 필드별 임베딩
+@logger.log_performance(operation_name="embed_fields", include_memory=True)
 def embed_fields(user: dict, fields: list, model=None) -> dict:
     """
     개별 필드를 임베딩 벡터로 변환

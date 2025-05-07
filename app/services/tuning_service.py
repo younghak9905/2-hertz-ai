@@ -5,6 +5,7 @@ import json
 from fastapi import HTTPException
 
 from app.core.vector_database import get_user_similarities, get_users_data
+from app.utils import logger
 
 
 # 유사도 정렬된 목록 가져오기
@@ -56,6 +57,9 @@ def filter_and_format_recommendations(
 
 
 # 튜닝 추천 리스트 반환
+
+
+@logger.log_performance(operation_name="get_matching_users", include_memory=True)
 async def get_matching_users(user_id: str) -> list[dict]:
     similar_users = await get_sorted_similar_users(str(user_id), top_k=100)
     user_metadata_map = await get_users_metadata_map([uid for uid, _ in similar_users])

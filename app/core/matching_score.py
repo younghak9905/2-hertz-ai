@@ -5,6 +5,8 @@ from typing import Dict, List
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
 
+from app.utils import logger
+
 # ---------------------- 상수 정의 ----------------------
 EMBEDDING_DIM = 768
 EMBEDDING_WEIGHT = 0.7
@@ -143,6 +145,9 @@ def rule_based_similarity(user1: dict, user2: dict) -> float:
 
 
 # ---------------------- 최종 매칭 점수 ----------------------
+
+
+@logger.log_performance(operation_name="compute_matching_score", include_memory=True)
 def compute_matching_score(
     user_id: str, user_embedding: List[float], user_meta: dict, all_users: dict
 ) -> Dict[str, float]:
