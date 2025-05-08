@@ -9,7 +9,7 @@ from fastapi import HTTPException
 from app.core.embedding import convert_user_to_text, embed_fields
 from app.core.enum_process import convert_to_korean
 from app.core.matching_score import compute_matching_score
-from app.core.vector_database import similarity_collection, user_collection
+from app.core.vector_database import get_similarity_collection, get_user_collection
 from app.models.sbert_loader import model
 from app.schemas.user_schema import EmbeddingRegister
 from app.utils import logger
@@ -24,7 +24,7 @@ def safe_join(value):
 
 # 매칭 스코어 정보 DB 저장
 def upsert_similarity(user_id: str, embedding: list, similarities: dict):
-    similarity_collection.upsert(
+    get_similarity_collection().upsert(
         ids=[user_id],
         embeddings=[embedding],
         metadatas=[{"userId": user_id, "similarities": json.dumps(similarities)}],
@@ -36,13 +36,15 @@ def update_reverse_similarities(user_id: str, similarities: dict):
     for other_id, score in similarities.items():
         try:
             other_id = str(other_id)
-            other_sim = similarity_collection.get(
+            other_sim = get_similarity_collection().get(
                 ids=[other_id], include=["metadatas", "embeddings"]
             )
 
             if not other_sim or not other_sim.get("metadatas"):
                 # 역 유저가 similarity DB에 없을 경우, user_collection에서 로드
-                other_user = user_collection.get(ids=[other_id], include=["embeddings"])
+                other_user = get_user_collection().get(
+                    ids=[other_id], include=["embeddings"]
+                )
                 other_embedding = other_user["embeddings"][0]
                 reverse_map = {user_id: score}
             else:
@@ -71,7 +73,7 @@ def enrich_with_reverse_similarities(
         if str(other_id) == user_id:
             continue
 
-        other_sim = similarity_collection.get(ids=[other_id])
+        other_sim = get_similarity_collection().get(ids=[other_id])
         if not other_sim or not other_sim.get("metadatas"):
             continue
 
@@ -87,7 +89,7 @@ def enrich_with_reverse_similarities(
 # 전체 유저와의 매칭 스코어 계산 및 저장
 def update_similarity_for_users(user_id: str) -> dict:
     try:
-        all_users = user_collection.get(include=["embeddings", "metadatas"])
+        all_users = get_user_collection().get(include=["embeddings", "metadatas"])
         ids, embeddings, metadatas = (
             all_users["ids"],
             all_users["embeddings"],
@@ -136,7 +138,7 @@ async def register_user(user: EmbeddingRegister) -> dict:
     user_id = str(user.userId)
 
     # 중복 ID 체크
-    existing = user_collection.get(ids=[user_id])
+    existing = get_user_collection().get(ids=[user_id])
     if existing and user_id in existing.get("ids", []):
         raise HTTPException(
             status_code=409,
@@ -169,7 +171,9 @@ async def register_user(user: EmbeddingRegister) -> dict:
         metadata = {k: safe_join(v) for k, v in user_dict.items()}
         metadata["field_embeddings"] = json.dumps(field_embeddings)
 
-        user_collection.add(ids=[user_id], embeddings=[embedding], metadatas=[metadata])
+        get_user_collection().add(
+            ids=[user_id], embeddings=[embedding], metadatas=[metadata]
+        )
 
     except Exception as e:
         print(f"[ REGISTER ERROR] 사용자 등록 실패: {e}")
