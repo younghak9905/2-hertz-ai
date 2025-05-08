@@ -15,6 +15,7 @@ from app.api.v1.endpoints.health_router import HealthRouter
 from app.api.v1.endpoints.monitoring_router import PerformanceRouter
 from app.api.v1.endpoints.tuning_router import TuningRouter
 from app.api.v1.endpoints.users_post_router import UserPostRouter
+from app.utils.error_handler import register_exception_handlers
 
 # .env 파일에서 환경 변수 로드
 load_dotenv()
@@ -26,6 +27,7 @@ app = FastAPI(
     version="1.0.0",
 )
 
+register_exception_handlers(app)  # 반드시 포함
 
 # 라우터 등록 - API를 기능별로 모듈화
 app.include_router(UserPostRouter().router)

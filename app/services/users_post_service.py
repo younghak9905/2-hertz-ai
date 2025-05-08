@@ -150,8 +150,8 @@ async def register_user(user: EmbeddingRegister) -> dict:
                 detail=[
                     {
                         "loc": ["body", field],
-                        "msg": "Field required",
-                        "type": "value_error.missing",
+                        "msg": "At least one item is required",
+                        "type": "value_error.min_items",
                     }
                     for field in missing_required
                 ],
