@@ -49,8 +49,7 @@ def get_chroma_client():
             host = os.getenv("CHROMA_HOST", "localhost")
             port = int(os.getenv("CHROMA_PORT", "8001"))
 
-            if not host.startswith("http"):
-                host = f"http://{host}"
+            host = host.replace("http://", "").replace("https://", "")
 
             chroma_client = chromadb.HttpClient(host=host, port=port)
 
