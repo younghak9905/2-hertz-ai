@@ -135,7 +135,66 @@ def update_similarity_for_users(user_id: str) -> dict:
 @logger.log_performance(operation_name="register_user", include_memory=True)
 async def register_user(user: EmbeddingRegister) -> dict:
     start_time = time.time()
-    user_id = str(user.userId)
+
+    try:
+        user_id = str(user.userId)
+
+        # 필수 필드 검증
+        required_fields = ["MBTI", "religion", "smoking", "drinking"]
+        missing_required = [
+            field for field in required_fields if not getattr(user, field, None)
+        ]
+        if missing_required:
+            raise HTTPException(
+                status_code=422,
+                detail=[
+                    {
+                        "loc": ["body", field],
+                        "msg": "Field required",
+                        "type": "value_error.missing",
+                    }
+                    for field in missing_required
+                ],
+            )
+
+        # 최소 1개 이상 필요한 필드 검증
+        min_required_fields = [
+            "personality",
+            "preferredPeople",
+            "currentInterests",
+            "favoriteFoods",
+            "likedSports",
+            "pets",
+            "selfDevelopment",
+        ]
+        empty_fields = [
+            field
+            for field in min_required_fields
+            if not getattr(user, field, None) or len(getattr(user, field)) < 1
+        ]
+        if empty_fields:
+            raise HTTPException(
+                status_code=422,
+                detail=[
+                    {
+                        "loc": ["body", field],
+                        "msg": "At least one item is required",
+                        "type": "value_error.min_items",
+                    }
+                    for field in empty_fields
+                ],
+            )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "code": "EMBEDDING_REGISTER_VALIDATION_FAILED",
+                "message": str(e),
+            },
+        )
 
     # 중복 ID 체크
     existing = get_user_collection().get(ids=[user_id])
@@ -146,7 +205,6 @@ async def register_user(user: EmbeddingRegister) -> dict:
         )
 
     try:
-        # Pydantic 모델 → dict 변환
         user_dict = user.model_dump()
         user_dict = convert_to_korean(user_dict)
 
