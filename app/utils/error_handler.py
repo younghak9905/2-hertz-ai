@@ -7,7 +7,8 @@ from fastapi import FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
-from utils.logger import logger
+
+from app.utils.logger import logger
 
 
 def register_exception_handlers(app: FastAPI) -> None:
@@ -26,6 +27,25 @@ def register_exception_handlers(app: FastAPI) -> None:
         # HTTP 예외에 detail이 Dict 형태로 들어있으면 그대로 사용
         if isinstance(exc.detail, dict) and "code" in exc.detail:
             return JSONResponse(status_code=exc.status_code, content=exc.detail)
+
+        if isinstance(exc.detail, list):
+            return JSONResponse(
+                status_code=exc.status_code,
+                content={
+                    "error": {
+                        "code": _status_to_error_code(exc.status_code),
+                        "message": "요청 필드 오류",
+                        "details": [
+                            {
+                                "field": ".".join(str(x) for x in e.get("loc", [])),
+                                "reason": e.get("msg", ""),
+                                "type": e.get("type", ""),
+                            }
+                            for e in exc.detail
+                        ],
+                    }
+                },
+            )
 
         # 기본 HTTP 예외 처리
         error_code = _status_to_error_code(exc.status_code)
@@ -48,10 +68,20 @@ def register_exception_handlers(app: FastAPI) -> None:
         logger.error(f"Validation Error: {error_message}")
 
         return JSONResponse(
-            status_code=status.HTTP_400_BAD_REQUEST,
+            status_code=422,
             content={
-                "code": "BAD_REQUEST_VALIDATION_ERROR",
-                "data": {"errors": error_details},
+                "error": {
+                    "code": "BAD_REQUEST_VALIDATION_ERROR",
+                    "message": "필수 필드 누락 또는 형식 오류",
+                    "details": [
+                        {
+                            "field": ".".join(str(x) for x in err["loc"]),
+                            "reason": err["msg"],
+                            "type": err["type"],
+                        }
+                        for err in exc.errors()
+                    ],
+                }
             },
         )
 
