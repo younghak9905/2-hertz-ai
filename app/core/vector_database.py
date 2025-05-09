@@ -98,6 +98,28 @@ def get_user_data(user_id: str):
     return collection.get(ids=[user_id], include=["metadatas"])
 
 
+def reset_collections():
+    """
+    크로마DB 컬렉션 완전 삭제 및 재생성
+    """
+    try:
+        client = get_chroma_client()
+
+        # 컬렉션 삭제
+        client.delete_collection("user_profiles")
+        client.delete_collection("user_similarities")
+
+        # 컬렉션 재생성
+        global user_collection, similarity_collection
+        user_collection = client.get_or_create_collection("user_profiles")
+        similarity_collection = client.get_or_create_collection("user_similarities")
+
+        print("[ChromaDB] 컬렉션 재생성 완료")
+
+    except Exception as e:
+        raise RuntimeError(f"ChromaDB 컬렉션 초기화 실패: {e}")
+
+
 async def get_users_data(user_ids: list[str]):
     collection = get_user_collection()
     return collection.get(ids=user_ids, include=["metadatas"])
