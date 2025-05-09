@@ -8,8 +8,8 @@ from typing import Dict
 
 from fastapi import HTTPException
 
-from app.core.vector_database import list_similarities, list_users
-from app.schemas.user_schema import EmbeddingRegister
+from app.core.vector_database import list_similarities, list_users, reset_collections
+from app.schemas.user_schema import BaseResponse, EmbeddingRegister
 from app.services.users_post_service import register_user
 
 logger = logging.getLogger(__name__)
@@ -37,6 +37,11 @@ async def db_similarity_list():
             "metadatas": (result.get("metadatas", [])),
         },
     }
+
+
+async def db_reset_data():
+    reset_collections()  # 동기 함수이므로 await 필요 없음
+    return BaseResponse(status="success", code="CHROMADB_RESET_SUCCESS")
 
 
 async def create_user(user_data: EmbeddingRegister) -> Dict:
