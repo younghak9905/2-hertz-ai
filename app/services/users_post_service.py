@@ -22,6 +22,40 @@ def safe_join(value):
     return ", ".join(str(v) for v in value) if isinstance(value, list) else str(value)
 
 
+@logger.log_performance(operation_name="prepare_embedding_data", include_memory=True)
+def prepare_embedding_data(
+    user_dict: dict, target_fields: list[str]
+) -> tuple[list[float], dict]:
+    """
+    사용자 딕셔너리에서 임베딩 및 메타데이터를 생성
+
+    Args:
+        user_dict: 사용자 정보 딕셔너리
+        target_fields: 임베딩에 사용할 필드 목록
+
+    Returns:
+        Tuple of (embedding vector, metadata dict)
+    """
+    try:
+        user_dict = convert_to_korean(user_dict)  # 한글화 처리
+
+        user_text = convert_user_to_text(user_dict, target_fields)
+        embedding = model.encode(user_text).tolist()  # 통합 텍스트 임베딩 생성
+
+        field_embeddings = embed_fields(user_dict, target_fields, model=model)
+
+        metadata = {k: safe_join(v) for k, v in user_dict.items()}
+        metadata["field_embeddings"] = json.dumps(field_embeddings)
+
+        return embedding, metadata
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail={"code": "EMBEDDING_PREPARATION_FAILED", "message": str(e)},
+        )
+
+
 # 매칭 스코어 정보 DB 저장
 def upsert_similarity(user_id: str, embedding: list, similarities: dict):
     get_similarity_collection().upsert(
@@ -32,6 +66,9 @@ def upsert_similarity(user_id: str, embedding: list, similarities: dict):
 
 
 # 매칭 스코어 정보 역방향 DB 저장
+@logger.log_performance(
+    operation_name="update_reverse_similarities", include_memory=True
+)
 def update_reverse_similarities(user_id: str, similarities: dict):
     for other_id, score in similarities.items():
         try:
@@ -64,6 +101,9 @@ def update_reverse_similarities(user_id: str, similarities: dict):
 
 
 # 현재 유저가 저장하지 않은 상대방의 기존 유사도를 병합
+@logger.log_performance(
+    operation_name="enrich_with_reverse_similarities", include_memory=True
+)
 def enrich_with_reverse_similarities(
     user_id: str, similarities: dict, all_users: dict
 ) -> dict:
@@ -87,6 +127,9 @@ def enrich_with_reverse_similarities(
 
 
 # 전체 유저와의 매칭 스코어 계산 및 저장
+@logger.log_performance(
+    operation_name="update_similarity_for_users", include_memory=True
+)
 def update_similarity_for_users(user_id: str) -> dict:
     try:
         all_users = get_user_collection().get(include=["embeddings", "metadatas"])
@@ -97,8 +140,13 @@ def update_similarity_for_users(user_id: str) -> dict:
         )
 
         if user_id not in ids:
-            raise HTTPException(status_code=404, detail=f"User ID {user_id} not found")
-
+            raise HTTPException(
+                status_code=404,
+                detail={
+                    "code": "SIMILARITY_USER_NOT_FOUND",
+                    "message": f"User ID {user_id} not found",
+                },
+            )
         idx = ids.index(user_id)
         user_embedding, user_meta = embeddings[idx], metadatas[idx]
 
@@ -123,11 +171,74 @@ def update_similarity_for_users(user_id: str) -> dict:
 
         return {"userId": user_id, "updated_similarities": len(updated_map)}
 
+    except HTTPException as http_ex:
+        raise http_ex
+
     except Exception as e:
         print(f"[SIMILARITY_UPDATE_ERROR] {e}")
         raise HTTPException(
             status_code=500,
-            detail={"code": "SIMILARITY_UPDATE_FAILED", "message": str(e)},
+            detail={
+                "code": "SIMILARITY_UPDATE_FAILED",
+                "message": str(e),
+            },
+        )
+
+
+# 필드 검증 로직 함수
+def validate_user_fields(user: EmbeddingRegister) -> None:
+    required_fields = ["MBTI", "religion", "smoking", "drinking"]
+    missing_required = [
+        field for field in required_fields if not getattr(user, field, None)
+    ]
+    if missing_required:
+        raise HTTPException(
+            status_code=422,
+            detail=[
+                {
+                    "loc": ["body", field],
+                    "msg": "At least one item is required",
+                    "type": "value_error.min_items",
+                }
+                for field in missing_required
+            ],
+        )
+
+    min_required_fields = [
+        "personality",
+        "preferredPeople",
+        "currentInterests",
+        "favoriteFoods",
+        "likedSports",
+        "pets",
+        "selfDevelopment",
+    ]
+    empty_fields = [
+        field
+        for field in min_required_fields
+        if not getattr(user, field, None) or len(getattr(user, field)) < 1
+    ]
+    if empty_fields:
+        raise HTTPException(
+            status_code=422,
+            detail=[
+                {
+                    "loc": ["body", field],
+                    "msg": "At least one item is required",
+                    "type": "value_error.min_items",
+                }
+                for field in empty_fields
+            ],
+        )
+
+
+# 아이디  중복 검사
+def check_duplicate_user(user_id: str) -> None:
+    existing = get_user_collection().get(ids=[user_id])
+    if existing and user_id in existing.get("ids", []):
+        raise HTTPException(
+            status_code=409,
+            detail={"code": "EMBEDDING_CONFLICT_DUPLICATE_ID", "data": None},
         )
 
 
@@ -138,52 +249,7 @@ async def register_user(user: EmbeddingRegister) -> dict:
 
     try:
         user_id = str(user.userId)
-
-        # 필수 필드 검증
-        required_fields = ["MBTI", "religion", "smoking", "drinking"]
-        missing_required = [
-            field for field in required_fields if not getattr(user, field, None)
-        ]
-        if missing_required:
-            raise HTTPException(
-                status_code=422,
-                detail=[
-                    {
-                        "loc": ["body", field],
-                        "msg": "At least one item is required",
-                        "type": "value_error.min_items",
-                    }
-                    for field in missing_required
-                ],
-            )
-
-        # 최소 1개 이상 필요한 필드 검증
-        min_required_fields = [
-            "personality",
-            "preferredPeople",
-            "currentInterests",
-            "favoriteFoods",
-            "likedSports",
-            "pets",
-            "selfDevelopment",
-        ]
-        empty_fields = [
-            field
-            for field in min_required_fields
-            if not getattr(user, field, None) or len(getattr(user, field)) < 1
-        ]
-        if empty_fields:
-            raise HTTPException(
-                status_code=422,
-                detail=[
-                    {
-                        "loc": ["body", field],
-                        "msg": "At least one item is required",
-                        "type": "value_error.min_items",
-                    }
-                    for field in empty_fields
-                ],
-            )
+        validate_user_fields(user)
 
     except HTTPException:
         raise
@@ -196,17 +262,10 @@ async def register_user(user: EmbeddingRegister) -> dict:
             },
         )
 
-    # 중복 ID 체크
-    existing = get_user_collection().get(ids=[user_id])
-    if existing and user_id in existing.get("ids", []):
-        raise HTTPException(
-            status_code=409,
-            detail={"code": "EMBEDDING_CONFLICT_DUPLICATE_ID", "data": None},
-        )
+    check_duplicate_user(user_id)
 
     try:
         user_dict = user.model_dump()
-        user_dict = convert_to_korean(user_dict)
 
         target_fields = [
             "emailDomain",
@@ -222,12 +281,7 @@ async def register_user(user: EmbeddingRegister) -> dict:
             "hobbies",
         ]
 
-        user_text = convert_user_to_text(user_dict, target_fields)
-        embedding = model.encode(user_text).tolist()
-        field_embeddings = embed_fields(user_dict, target_fields, model=model)
-
-        metadata = {k: safe_join(v) for k, v in user_dict.items()}
-        metadata["field_embeddings"] = json.dumps(field_embeddings)
+        embedding, metadata = prepare_embedding_data(user_dict, target_fields)
 
         get_user_collection().add(
             ids=[user_id], embeddings=[embedding], metadatas=[metadata]

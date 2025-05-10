@@ -6,6 +6,7 @@ import logging
 import os
 import time
 from datetime import datetime
+from inspect import signature
 from typing import Any, Callable, Dict, Optional
 
 import psutil
@@ -57,12 +58,22 @@ def log_performance(operation_name: Optional[str] = None, include_memory: bool =
             op_name = operation_name or func.__name__
 
             # 유저 ID 추출 시도
-            user_id = kwargs.get("user_id", None)
-            if user_id is None and len(args) > 0:
-                if isinstance(args[0], dict) and "userId" in args[0]:
-                    user_id = args[0]["userId"]
-                elif hasattr(args[0], "userId"):
-                    user_id = args[0].userId
+            bound_args = signature(func).bind(*args, **kwargs)
+            bound_args.apply_defaults()
+
+            user_id = bound_args.arguments.get("user_id") or bound_args.arguments.get(
+                "userId"
+            )
+
+            # 없으면 객체 속성에서 탐색
+            if not user_id:
+                for arg in bound_args.arguments.values():
+                    if hasattr(arg, "user_id"):
+                        user_id = getattr(arg, "user_id")
+                        break
+                    elif hasattr(arg, "userId"):
+                        user_id = getattr(arg, "userId")
+                        break
 
             user_id = str(user_id) if user_id is not None else "unknown"
 
@@ -89,7 +100,12 @@ def log_performance(operation_name: Optional[str] = None, include_memory: bool =
                     final_memory = _get_memory_usage()
                     memory_diff = final_memory - initial_memory
                     memory_info = f", memory_diff={memory_diff:.2f}MB"
-                    performance_metrics["memory_usage_samples"].append(final_memory)
+
+                    if op_name not in performance_metrics["memory_usage_by_function"]:
+                        performance_metrics["memory_usage_by_function"][op_name] = []
+                    performance_metrics["memory_usage_by_function"][op_name].append(
+                        final_memory
+                    )
 
                 # 성능 정보 로깅
                 logger.info(
