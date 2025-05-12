@@ -10,6 +10,12 @@ __pycache__/
 *.jpg
 *.png
 
+# CSV files
+*.csv
+
+# text files
+*.txt
+
 # JSON files
 *.json
 
