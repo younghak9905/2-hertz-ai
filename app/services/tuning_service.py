@@ -1,5 +1,3 @@
-# 매칭 서비스(유사도 기반 사용차 추천 로직)
-
 import json
 
 from fastapi import HTTPException
@@ -8,99 +6,78 @@ from app.core.vector_database import get_user_similarities, get_users_data
 from app.utils import logger
 
 
-# 유사도 정렬된 목록 가져오기
-async def get_sorted_similar_users(
-    user_id: str, top_k: int = 100
-) -> list[tuple[str, float]]:
+# 유사도 데이터를 가져오고 파싱하는 함수
+async def fetch_user_similarities(user_id: str) -> dict[str, float]:
     sim_data = await get_user_similarities(user_id)
 
+    # 유사도 데이터가 없으면 404 에러 반환
     if not sim_data or not sim_data.get("metadatas"):
         raise HTTPException(
-            status_code=404,
-            detail={
-                "code": "TUNING_NOT_FOUND_USER",
-                "data": None,
-            },
+            status_code=404, detail={"code": "TUNING_NOT_FOUND_USER", "data": None}
+        )
+    try:
+        # similarities 필드에서 JSON 문자열을 딕셔너리로 파싱
+        sim_map = json.loads(sim_data["metadatas"][0].get("similarities", "{}"))
+
+        # 문자열 userId → float 유사도 점수 형태로 변환
+        return {str(k): float(v) for k, v in sim_map.items()}
+    except (ValueError, TypeError, json.JSONDecodeError) as e:
+        raise HTTPException(
+            status_code=500,
+            detail={"code": "INVALID_SIMILARITY_DATA", "message": str(e)},
         )
 
-    try:
-        sim_map = json.loads(sim_data["metadatas"][0].get("similarities", "{}"))
-        sim_map = {str(k): float(v) for k, v in sim_map.items()}
-    except (ValueError, TypeError, json.JSONDecodeError):
-        raise HTTPException(status_code=500, detail="Invalid similarity data format")
 
-    return sorted(sim_map.items(), key=lambda x: x[1], reverse=True)[:top_k]
+# userId 리스트를 받아 해당 유저들의 메타데이터를 가져오는 함수
+async def fetch_users_metadata(user_ids: list[str]) -> dict[str, dict]:
 
-
-async def get_users_metadata_map(user_ids: list[str]) -> dict[str, dict]:
-    """
-    사용자 ID 리스트를 받아 해당 사용자들의 메타데이터를 userId 기준으로 매핑한 딕셔너리를 반환
-
-    Args:
-        user_ids: 사용자 ID 리스트
-
-    Returns:
-        Dict[str, dict]: userId -> metadata 딕셔너리
-
-    Raises:
-        HTTPException: 메타데이터 조회 실패 시 500 에러 반환
-    """
     if not user_ids:
         return {}
 
+    # user_ids가 리스트가 아닐 경우 방어
+    if not isinstance(user_ids, list):
+        raise ValueError(f"Expected user_ids to be a list, got {type(user_ids)}")
     try:
         user_data = await get_users_data(user_ids)
-        metadata_list = user_data.get("metadatas", [])
-        if not isinstance(metadata_list, list):
-            raise ValueError("Invalid metadata format")
+
+        # userId를 키로 하는 metadata 딕셔너리로 변환
+        return {
+            meta["userId"]: meta
+            for meta in user_data.get("metadatas", [])
+            if isinstance(meta, dict) and "userId" in meta
+        }
     except Exception as e:
         raise HTTPException(
             status_code=500,
-            detail={
-                "code": "USER_METADATA_FETCH_FAILED",
-                "message": str(e),
-            },
+            detail={"code": "USER_METADATA_FETCH_FAILED", "message": str(e)},
         )
 
-    return {
-        meta.get("userId"): meta
-        for meta in metadata_list
-        if isinstance(meta, dict) and "userId" in meta
-    }
+
+# 유사도 정보와 메타데이터를 기반으로 추천 ID만 추출하는 함수
+def format_recommendations(
+    similarities: dict[str, float], metadata: dict[str, dict], top_k: int = 100
+) -> list[int]:
+
+    # 유사도 점수를 기준으로 내림차순 정렬 후 상위 N개만 추출
+    sorted_users = sorted(similarities.items(), key=lambda x: x[1], reverse=True)[
+        :top_k
+    ]
+
+    # metadata가 존재하는 유저만 ID로 반환
+    return [int(uid) for uid, _ in sorted_users if uid in metadata]
 
 
-# 필터링 및 추천 포맷팅
-def filter_and_format_recommendations(
-    sorted_similar: list[tuple[str, float]],
-    id_to_meta: dict,
-) -> list[dict]:
-    """
-    유사도 기반 추천 목록에서 메타데이터가 존재하는 사용자만 필터링하고,
-    추천 결과를 포맷팅하여 반환
-
-    Args:
-        sorted_similar: (user_id, similarity_score) 리스트
-        id_to_meta: user_id -> metadata 매핑 딕셔너리
-
-    Returns:
-        추천 사용자 목록 (userId, similarity 포함된 딕셔너리)
-
-    """
-
-    user_id = []
-    for uid, sim in sorted_similar:
-        user_meta = id_to_meta.get(uid)
-        if not user_meta:
-            continue
-        user_id.append(int(uid))
-
-    return user_id
-
-
-# 튜닝 추천 리스트 반환
+# 전체 추천 결과를 반환하는 메인 함수
 @logger.log_performance(operation_name="get_matching_users", include_memory=True)
-async def get_matching_users(user_id: str) -> list[dict]:
-    similar_users = await get_sorted_similar_users(str(user_id), top_k=100)
-    user_metadata_map = await get_users_metadata_map([uid for uid, _ in similar_users])
+async def get_matching_users(user_id: str) -> list[int]:
+    # 유사도 정보 가져오기
+    similarities = await fetch_user_similarities(str(user_id))
 
-    return filter_and_format_recommendations(similar_users, user_metadata_map)
+    # 유사도에 포함된 유저 ID만 추출
+    user_ids = list(similarities.keys())
+
+    # 해당 유저들의 메타데이터 조회
+    metadata = await fetch_users_metadata(user_ids)
+
+    # 최종적으로 추천할 유저 ID 리스트 반환
+    return format_recommendations(similarities, metadata)
