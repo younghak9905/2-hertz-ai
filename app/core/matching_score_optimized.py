@@ -405,9 +405,7 @@ def compute_matching_score_optimized(
 
     # 2. 개선된 임베딩 결합 적용
     my_fields = json.loads(user_meta.get("field_embeddings", "{}"))
-    combined_user_embedding = combine_embeddings(
-        user_embedding, my_fields, method=embedding_method
-    )
+    combined_user_embedding = combine_embeddings(user_embedding, my_fields)
 
     # 3. 한번에 처리할 임베딩 및 메타데이터 준비
     other_ids = [all_ids[i] for i in domain_indices]
@@ -418,9 +416,7 @@ def compute_matching_score_optimized(
     for i in domain_indices:
         other_meta = all_metas[i]
         other_fields = json.loads(other_meta.get("field_embeddings", "{}"))
-        combined_other_embedding = combine_embeddings(
-            all_embeddings[i], other_fields, method=embedding_method
-        )
+        combined_other_embedding = combine_embeddings(all_embeddings[i], other_fields)
         other_embeddings.append(combined_other_embedding)
         other_metas_filtered.append(other_meta)
 

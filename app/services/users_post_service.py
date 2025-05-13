@@ -8,7 +8,9 @@ from fastapi import HTTPException
 
 from app.core.embedding import convert_user_to_text, embed_fields
 from app.core.enum_process import convert_to_korean
-from app.core.matching_score import compute_matching_score
+
+# from app.core.matching_score import compute_matching_score
+from app.core.matching_score_optimized import compute_matching_score_optimized
 from app.core.vector_database import get_similarity_collection, get_user_collection
 from app.models.sbert_loader import model
 from app.schemas.user_schema import EmbeddingRegister
@@ -150,7 +152,14 @@ def update_similarity_for_users(user_id: str) -> dict:
         idx = ids.index(user_id)
         user_embedding, user_meta = embeddings[idx], metadatas[idx]
 
-        similarities = compute_matching_score(
+        # similarities = compute_matching_score(
+        #     user_id=user_id,
+        #     user_embedding=user_embedding,
+        #     user_meta=user_meta,
+        #     all_users=all_users,
+        # )
+
+        similarities = compute_matching_score_optimized(
             user_id=user_id,
             user_embedding=user_embedding,
             user_meta=user_meta,
