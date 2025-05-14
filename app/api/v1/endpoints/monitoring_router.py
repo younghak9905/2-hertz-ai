@@ -26,7 +26,7 @@ class PerformanceRouter:
             description="API 응답 시간, 메모리 사용량, 오류 횟수 등 애플리케이션 성능 관련 메트릭 요약 정보를 조회합니다.",
         )
 
-    async def get_summary(self) -> JSONResponse:
+    def get_summary(self) -> JSONResponse:
         """
         수집된 성능 지표 요약 정보를 반환
 
