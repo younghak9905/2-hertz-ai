@@ -2,7 +2,7 @@
 name: Refactor Issue Report
 about: 리팩터링 진행한 내역을 작성하는 템플릿
 title: "[REFACTOR] 안건"
-labels: ''
+labels: "\U0001F6E0️ refactor"
 assignees: jinkyeongk, stupidyoh
 
 ---
