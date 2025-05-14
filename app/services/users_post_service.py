@@ -6,13 +6,16 @@ import time
 import numpy as np
 from fastapi import HTTPException
 
-from app.core.embedding import convert_user_to_text, embed_fields
+# from app.core.embedding import convert_user_to_text, embed_fields
+from app.core.embedding import convert_user_to_text, embed_fields_optimized
 from app.core.enum_process import convert_to_korean
 
 # from app.core.matching_score import compute_matching_score
 from app.core.matching_score_optimized import compute_matching_score_optimized
 from app.core.vector_database import get_similarity_collection, get_user_collection
-from app.models.sbert_loader import model
+
+# from app.models.sbert_loader import model
+from app.models.sbert_loader import get_model
 from app.schemas.user_schema import EmbeddingRegister
 from app.utils import logger
 
@@ -42,9 +45,12 @@ def prepare_embedding_data(
         user_dict = convert_to_korean(user_dict)  # 한글화 처리
 
         user_text = convert_user_to_text(user_dict, target_fields)
+
+        model = get_model()
         embedding = model.encode(user_text).tolist()  # 통합 텍스트 임베딩 생성
 
-        field_embeddings = embed_fields(user_dict, target_fields, model=model)
+        # field_embeddings = embed_fields(user_dict, target_fields, model=model)
+        field_embeddings = embed_fields_optimized(user_dict, target_fields)
 
         metadata = {k: safe_join(v) for k, v in user_dict.items()}
         metadata["field_embeddings"] = json.dumps(field_embeddings)
