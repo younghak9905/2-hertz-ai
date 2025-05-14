@@ -3,7 +3,7 @@ name: Feature Request
 about: 새로운 기능이나 개선 사항을 제안할 때 작성하는 템플릿
 title: "[FEATURE] 안건"
 labels: ''
-assignees: stupidyoh, jinkyeongk
+assignees: jinkyeongk, stupidyoh
 
 ---
 
