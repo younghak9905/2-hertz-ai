@@ -4,16 +4,16 @@
 """
 
 import logging
-from typing import Dict
 
 from fastapi import HTTPException
 
+from app.schemas.tuning_schema import TuningResponse
 from app.services.tuning_service import get_matching_users
 
 logger = logging.getLogger(__name__)
 
 
-async def get_tuning_matches(user_id: str) -> Dict:
+async def get_tuning_matches(user_id: str) -> TuningResponse:
     """
     사용자 ID를 기반으로 매칭 추천을 제공하는 컨트롤러 함수
 

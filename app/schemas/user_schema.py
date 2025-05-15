@@ -82,7 +82,40 @@ class EmbeddingRegister(BaseModel):
     )
 
 
-# v2 스키마
+class BaseResponse(BaseModel):
+    """
+    API 응답의 기본 구조
+    """
+
+    code: str = Field(..., description="응답 코드")
+    data: Optional[Dict] = Field(None, description="응답 데이터 (있는 경우)")
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {"code": "EMBEDDING_REGISTER_CREATED", "data": None}
+        }
+    )
+
+
+class ErrorResponse(BaseModel):
+    """
+    API 오류 응답 구조
+    """
+
+    code: str = Field(..., description="오류 코드")
+    data: Optional[Dict] = Field(None, description="오류 상세 정보 (있는 경우)")
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "code": "EMBEDDING_REGISTER_BAD_REQUEST",
+                "data": None,
+            }
+        }
+    )
+
+
+# v3 스키마
 # class EmbeddingModify(BaseModel):
 #     """
 #     사용자 정보 수정 및 임베딩 재생성을 위한 요청 모델
@@ -137,36 +170,3 @@ class EmbeddingRegister(BaseModel):
 
 #     class Config:
 #         schema_extra = {"example": {"userId": 1}}
-
-
-class BaseResponse(BaseModel):
-    """
-    API 응답의 기본 구조
-    """
-
-    code: str = Field(..., description="응답 코드")
-    data: Optional[Dict] = Field(None, description="응답 데이터 (있는 경우)")
-
-    model_config = ConfigDict(
-        json_schema_extra={
-            "example": {"code": "EMBEDDING_REGISTER_CREATED", "data": None}
-        }
-    )
-
-
-class ErrorResponse(BaseModel):
-    """
-    API 오류 응답 구조
-    """
-
-    code: str = Field(..., description="오류 코드")
-    data: Optional[Dict] = Field(None, description="오류 상세 정보 (있는 경우)")
-
-    model_config = ConfigDict(
-        json_schema_extra={
-            "example": {
-                "code": "EMBEDDING_REGISTER_BAD_REQUEST",
-                "data": None,
-            }
-        }
-    )
