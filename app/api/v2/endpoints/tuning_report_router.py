@@ -26,17 +26,6 @@ class TuningReportRouter:
             description="해당 사용자 정보를 기반으로 매칭 리포트를 생성합니다.",
         )
 
-        self.router.add_api_route(
-            "/v2/gpu",
-            lambda: {"nvidia_smi": TuningReportController.get_gpu_info()},
-            methods=["GET"],
-            summary="nvidia-smi",
-            description="Returns nvidia-smi output",
-        )
-
-    def gpu_info(self):
-        return {"nvidia_smi": TuningReportController.get_gpu_info()}
-
     async def create_tuning_report(self, request: Request, body: TuningReport):
         controller = TuningReportController(app=request.app)
         return await controller.create_tuning_report(body)
