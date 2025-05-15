@@ -1,0 +1,13 @@
+[flake8]
+max-line-length = 88
+exclude = 
+    .git,
+    .gitignore,
+    */migrations/*,
+    __pycache__,
+ignore = 
+    E203,
+    E501,
+    E712,
+    E722,
+    W503

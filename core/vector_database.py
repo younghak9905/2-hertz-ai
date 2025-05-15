@@ -1,1 +1,0 @@
-# 벡터DB 관리(chromaDB 연동)
