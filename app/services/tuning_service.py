@@ -3,6 +3,7 @@ import json
 from fastapi import HTTPException
 
 from app.core.vector_database import get_user_similarities, get_users_data
+from app.schemas.tuning_schema import TuningResponse
 from app.utils import logger
 
 
@@ -69,7 +70,7 @@ def format_recommendations(
 
 # 전체 추천 결과를 반환하는 메인 함수
 @logger.log_performance(operation_name="get_matching_users", include_memory=True)
-async def get_matching_users(user_id: str) -> list[int]:
+async def get_matching_users(user_id: str) -> TuningResponse:
     # 유사도 정보 가져오기
     similarities = await fetch_user_similarities(str(user_id))
 
