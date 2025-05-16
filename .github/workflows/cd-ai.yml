@@ -1,4 +1,3 @@
-# .github/workflows/cd-ai.yml
 name: AI CD
 on:
   workflow_run:
