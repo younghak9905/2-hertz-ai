@@ -9,7 +9,7 @@ on:
       - develop
   # CD 트리거
   workflow_run:
-    workflows: ["AI CI/CD"]
+    workflows: ["AI CI"]  # AI CI 워크플로우가 완료되면 트리거
     types: [completed]
   workflow_dispatch:
     inputs:
