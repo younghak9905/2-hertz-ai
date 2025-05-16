@@ -2,12 +2,13 @@ name: AI CD (SSH)
 
 on:
   workflow_run:
-    workflows: ["ai ci"]   # 정확히 위의 CI 워크플로 이름과 동일해야 함
+    workflows: ["ai-ci"]   # 정확히 위의 CI 워크플로 이름과 동일해야 함
     types:
       - completed
     branches:
       - main
       - develop
+      
 jobs:
   deploy:
     runs-on: ubuntu-latest
