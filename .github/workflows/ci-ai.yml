@@ -1,14 +1,12 @@
 # .github/workflows/fastapi-ai-ci.yml
 
 name: AI CI
-
-
 on:
   pull_request:
-   types: [closed] # PR이 닫혔을 때 (병합 포함)
-     branches:
-       - main # main 브랜치로 Merge 시 -> Production 환경에 배포
-       - develop # develop 브랜치로 Merge 시 -> DEV 환경에 배포
+    types: [closed]
+    branches:
+      - main
+      - develop
 jobs:
   ai-ci:
     runs-on: ubuntu-latest
