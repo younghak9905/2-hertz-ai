@@ -48,7 +48,7 @@ def get_chroma_client():
             chroma_client = None  # 죽은 연결 무효화
 
     try:
-        mode = os.getenv("CHROMA_MODE", "local")  # "local" 또는 "server"
+        mode = os.getenv("CHROMA_MODE", "server")  # "local" 또는 "server"
 
         if mode == "local":
             # 로컬 PersistentClient 사용
