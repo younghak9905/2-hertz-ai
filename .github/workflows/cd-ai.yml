@@ -1,13 +1,11 @@
-name: AI CD (SSH)
-
+# .github/workflows/cd-ai.yml
+name: AI CD
 on:
   workflow_run:
-    workflows: ["AI CI"]   # 정확히 위의 CI 워크플로 이름과 동일해야 함
+    workflows:
+      - AI CI   # 정확히 위의 CI 워크플로 이름과 동일해야 함
     types:
-      - completed
-    branches:
-      - main
-      - develop
+      - completed 
   workflow_dispatch:
     inputs:
         environment:
