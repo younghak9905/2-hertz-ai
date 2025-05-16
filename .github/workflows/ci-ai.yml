@@ -37,11 +37,8 @@ jobs:
     # 4. 의존성 설치 (병렬 처리 및 캐시 활용)
     - name: Install dependencies
       run: |
-        pip install --upgrade pip setuptools wheel
-        # requirements.txt 설치 (없으면 건너뜀)
-        pip install -r requirements.txt || echo "📦 requirements.txt 없음, 건너뜀"
-        # 기본 의존성 설치 (한 번에 설치)
-        pip install uvicorn
+        pip install --upgrade pip
+        pip install -r requirements.txt
 
     - name: Launch FastAPI server in background
       run: |
@@ -59,7 +56,7 @@ jobs:
         curl -H "Content-Type: application/json" \
              -X POST \
              -d "{\"username\": \"AI CI\", \"content\": \"✅ [AI CI 성공] **${{ github.base_ref }}** AI 서버 (브랜치: \`${{ github.head_ref }}\`)\\n🔖 Commit: ${{ github.sha }}\"}" \
-             ${{ secrets.DISCORD_WEBHOOK_URL }}
+             ${{ secrets.DISCORD_WEBHOOK_PR_URL }}
 
     - name: Send failure notification
       if: failure()
@@ -68,4 +65,4 @@ jobs:
         curl -H "Content-Type: application/json" \
              -X POST \
              -d "{\"username\": \"AI CI\", \"content\": \"❌ [AI CI 실패] **${{ github.base_ref }}** AI 서버 (브랜치: \`${{ github.head_ref }}\`)\\n🔖 Commit: ${{ github.sha }}\\n⚠️ [워크플로우 로그 보기]($WORKFLOW_URL)\"}" \
-             ${{ secrets.DISCORD_WEBHOOK_URL }}
+             ${{ secrets.DISCORD_WEBHOOK_PR_URL }}
