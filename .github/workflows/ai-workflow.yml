@@ -1,4 +1,3 @@
-# AI CI/CD 워크플로우
 name: CI/CD
 on:
   # CI 트리거
