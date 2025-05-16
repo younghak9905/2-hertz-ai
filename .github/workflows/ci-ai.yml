@@ -46,11 +46,11 @@ jobs:
     - name: Launch FastAPI server in background
       run: |
         nohup uvicorn app.main:app --host 127.0.0.1 --port 8000 > uvicorn.log 2>&1 &
-        sleep 5  # 서버 기동 대기
+        sleep 10  # 서버 기동 대기
 
     - name: Health check
       run: |
-        curl -f http://127.0.0.1:8000/docs || (cat uvicorn.log && exit 1)
+           curl -f http://127.0.0.1:8000/docs || (echo "❌ 서버 실행 실패. 로그 출력:" && cat uvicorn.log && exit 1)
 
     # 5. Discord 알림
     - name: Send success notification
