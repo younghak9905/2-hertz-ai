@@ -1,5 +1,5 @@
 # AI CI/CD 워크플로우
-name: AI CI/CD
+name: CI/CD
 on:
   # CI 트리거
   pull_request:
@@ -7,10 +7,6 @@ on:
     branches:
       - main
       - develop
-  # CD 트리거
-  workflow_run:
-    workflows: ["AI CI"]  # AI CI 워크플로우가 완료되면 트리거
-    types: [completed]
   workflow_dispatch:
     inputs:
       environment:
