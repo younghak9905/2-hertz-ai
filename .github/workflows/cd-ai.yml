@@ -1,22 +1,24 @@
-# AI CD 워크플로우
 name: AI CD
+
 on:
+  push:
+    branches:
+      - fix/deploy-ai
   workflow_run:
-    workflows:
-      - AI CI   # 정확히 위의 CI 워크플로 이름과 동일해야 함
+    workflows: ['AI CI'] # 정확히 CI 워크플로우 이름과 일치해야 함
     types:
-      - completed 
+      - completed
   workflow_dispatch:
     inputs:
-        environment:
-          description: 'Environment to deploy (main or develop)'
-          required: true
-          default: 'develop'
-          type: choice
-          options:
-              - main
-              - develop
-      
+      environment:
+        description: 'Environment to deploy (main or develop)'
+        required: true
+        default: "develop"
+        type: choice
+        options:
+          - "main"
+          - "develop"
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -41,7 +43,7 @@ jobs:
           fi
 
           echo "COMMIT_HASH=${{ github.sha }}" >> $GITHUB_ENV
-      
+
       - name: Authenticate to GCP
         if: github.ref_name == 'main'
         uses: google-github-actions/auth@v1
@@ -127,15 +129,19 @@ jobs:
                -d "{\"content\": \"🚀 [AI 배포 완료] **${{ env.ENV }}** AI 서버 (브랜치: \`${{ env.BRANCH }}\`)\\n🔖 Commit: ${{ env.COMMIT_HASH }}\"}" \
                ${{ secrets.DISCORD_WEBHOOK_PR_URL }}
 
- # 실패 시, 롤백 수행하는 job
-  rollback-production:
-    if: failure() && github.ref == 'refs/heads/main'
-    uses: 100-hours-a-week/2-hertz-ai/.github/workflows/rollback-ai.yml@main
-    with:
-      environment: production
+  #rollback-production:
+  #  needs: deploy
+  #  if: ${{ needs.deploy.result == 'failure' && github.ref_name == 'main' }}
+  #  uses: 100-hours-a-week/2-hertz-ai/.github/workflows/rollback-ai.yml@main
+  #  with:
+  #    environment: production
 
   rollback-develop:
-    if: failure() && github.ref == 'refs/heads/develop'
+    needs: deploy
+    if: ${{ needs.deploy.result == 'failure' && github.ref_name == 'develop' }}
     uses: 100-hours-a-week/2-hertz-ai/.github/workflows/rollback-ai.yml@develop
     with:
       environment: develop
+
+
+
