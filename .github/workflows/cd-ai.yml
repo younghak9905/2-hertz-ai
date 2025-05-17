@@ -1,9 +1,11 @@
 name: AI CD
 
 on:
+  push:
+    branches:
+      - fix/deploy-ai
   workflow_run:
-    workflows:
-      - AI CI # 정확히 CI 워크플로우 이름과 일치해야 함
+    workflows: ['AI CI'] # 정확히 CI 워크플로우 이름과 일치해야 함
     types:
       - completed
   workflow_dispatch:
@@ -126,6 +128,21 @@ jobs:
                -X POST \
                -d "{\"content\": \"🚀 [AI 배포 완료] **${{ env.ENV }}** AI 서버 (브랜치: \`${{ env.BRANCH }}\`)\\n🔖 Commit: ${{ env.COMMIT_HASH }}\"}" \
                ${{ secrets.DISCORD_WEBHOOK_PR_URL }}
+
+  #rollback-production:
+  #  needs: deploy
+  #  if: ${{ needs.deploy.result == 'failure' && github.ref_name == 'main' }}
+  #  uses: 100-hours-a-week/2-hertz-ai/.github/workflows/rollback-ai.yml@main
+  #  with:
+  #    environment: production
+
+  #rollback-develop:
+  #  needs: deploy
+  #  if: ${{ needs.deploy.result == 'failure' && github.ref_name == 'develop' }}
+  #  uses: 100-hours-a-week/2-hertz-ai/.github/workflows/rollback-ai.yml@develop
+  #  with:
+  #    environment: develop
+
 
   rollback-production:
     needs: deploy
