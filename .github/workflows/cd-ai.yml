@@ -136,24 +136,12 @@ jobs:
   #  with:
   #    environment: production
 
-  #rollback-develop:
-  #  needs: deploy
-  #  if: ${{ needs.deploy.result == 'failure' && github.ref_name == 'develop' }}
-  #  uses: 100-hours-a-week/2-hertz-ai/.github/workflows/rollback-ai.yml@develop
-  #  with:
-  #    environment: develop
-
-
-  rollback-production:
-    needs: deploy
-    if: ${{ needs.deploy.result == 'failure' && github.ref_name == 'main' }}
-    uses: 100-hours-a-week/2-hertz-ai/.github/workflows/rollback-ai.yml@main
-    with:
-      environment: production
-
   rollback-develop:
     needs: deploy
     if: ${{ needs.deploy.result == 'failure' && github.ref_name == 'develop' }}
     uses: 100-hours-a-week/2-hertz-ai/.github/workflows/rollback-ai.yml@develop
     with:
       environment: develop
+
+
+
