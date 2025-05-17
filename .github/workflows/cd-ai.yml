@@ -23,7 +23,7 @@ jobs:
     steps:
       - name: Set environment
         run: |
-          BRANCH="${{ github.ref_name }}"
+          BRANCH="${{ github.event.workflow_run.head_branch || github.ref_name }}"
           echo "BRANCH=$BRANCH" >> $GITHUB_ENV
           echo "ZONE=${{ secrets.GCP_ZONE }}" >> $GITHUB_ENV
 
