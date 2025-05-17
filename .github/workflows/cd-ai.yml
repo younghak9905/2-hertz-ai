@@ -11,11 +11,11 @@ on:
       environment:
         description: 'Environment to deploy (main or develop)'
         required: true
-        default: 'develop'
+        default: "develop"
         type: choice
         options:
-          - main
-          - develop
+          - "main"
+          - "develop"
 
 jobs:
   deploy:
