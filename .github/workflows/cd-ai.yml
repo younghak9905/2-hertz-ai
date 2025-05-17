@@ -23,7 +23,7 @@ jobs:
     steps:
       - name: Set environment
         run: |
-          BRANCH="${{ github.ref_name }}"
+          BRANCH="${{ github.event.workflow_run.head_branch || github.ref_name }}"
           echo "BRANCH=$BRANCH" >> $GITHUB_ENV
           echo "ZONE=${{ secrets.GCP_ZONE }}" >> $GITHUB_ENV
 
@@ -126,12 +126,12 @@ jobs:
                -d "{\"content\": \"🚀 [AI 배포 완료] **${{ env.ENV }}** AI 서버 (브랜치: \`${{ env.BRANCH }}\`)\\n🔖 Commit: ${{ env.COMMIT_HASH }}\"}" \
                ${{ secrets.DISCORD_WEBHOOK_PR_URL }}
 
-  #rollback-production:
-  #  needs: deploy
-  #  if: ${{ needs.deploy.result == 'failure' && github.ref_name == 'main' }}
-  #  uses: 100-hours-a-week/2-hertz-ai/.github/workflows/rollback-ai.yml@main
-  #  with:
-  #    environment: production
+  rollback-production:
+    needs: deploy
+    if: ${{ needs.deploy.result == 'failure' && github.ref_name == 'main' }}
+    uses: 100-hours-a-week/2-hertz-ai/.github/workflows/rollback-ai.yml@main
+    with:
+      environment: production
 
   rollback-develop:
     needs: deploy
