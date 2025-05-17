@@ -1,9 +1,6 @@
 name: AI CD
 
 on:
-  push:
-    branches:
-      - fix/deploy-ai
   workflow_run:
     workflows: ['AI CI'] # 정확히 CI 워크플로우 이름과 일치해야 함
     types:
