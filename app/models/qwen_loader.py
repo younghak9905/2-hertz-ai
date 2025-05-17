@@ -18,7 +18,7 @@ class QwenLoader:
         self.data = {
             "model": self.model_path,
             "messages": [],
-            "temperature": 0.0,
+            "temperature": 0.8,
             "top_p": 0.9,
             "max_tokens": 1024,
             "stop": ["\n\n", "</s>"],
@@ -45,64 +45,49 @@ class QwenLoader:
 
     def get_response(self, messages):
         if self.mode == "colab":
-            # Ngrok(Colab) API로 요청
+            from transformers import AutoTokenizer
+
             load_dotenv(override=True)
             base_url = os.getenv("NGROK_URL")
-            self.data["messages"] = messages
-            url = f"{base_url}/v1/chat/completions"
+            url = f"{base_url}/v1/completions"
+
+            # messages → 단일 prompt 텍스트로 변환
+            tokenizer = AutoTokenizer.from_pretrained(self.model_path)
+            prompt = tokenizer.apply_chat_template(
+                messages, tokenize=False, add_generation_prompt=True
+            )
+            payload = {
+                "model": self.model_path,
+                "prompt": prompt,
+                "temperature": 0.3,
+                "top_p": 0.9,
+                "max_tokens": 1024,
+                "stop": ["}"],
+            }
+
+            headers = {
+                "Content-Type": "application/json",
+                "Authorization": "Bearer dummy-key",
+            }
+
             start_time = time.time()
-            response = requests.post(url, headers=self.headers, json=self.data)
+            response = requests.post(url, headers=headers, json=payload)
             end_time = time.time()
-            print(f"response time : {(end_time - start_time):.3f}")
+            print(f"response time: {end_time - start_time:.2f}s")
+
             if response.status_code != 200:
-                try:
-                    error_body = response.json()
-                except ValueError:
-                    error_body = response.text
                 return {
                     "status_code": response.status_code,
                     "url": response.url,
-                    "headers": dict(response.headers),
-                    "error": error_body,
+                    "error": response.text,
                 }
+
             body = response.json()
-
             return {
-                "status_code": response.status_code,
+                "status_code": 200,
                 "url": response.url,
-                "title": body["choices"][0]["message"].get("title", ""),
-                "content": body["choices"][0]["message"].get("content", ""),
+                "content": body["choices"][0]["text"],
             }
-        elif self.mode == "gcp":
-            """
-            vllm 엔진을 통한 직접 추론
-            """
-
-            # Chat Prompt 형식에서 -> Text Prompt 형식으로 변경
-            from transformers import AutoTokenizer
-
-            tokenizer = AutoTokenizer.from_pretrained(self.model_path)
-
-            # messages -> 텍스트로 변환
-            text_prompt = tokenizer.apply_chat_template(
-                messages,
-                add_generation_prompt=True,  # 마지막에 assistant 응답 위치를 표시해줌
-                tokenize=False,  # string 그대로 받기
-            )
-
-            start_time = time.time()
-
-            try:
-                outputs = self.model_vllm.generate(text_prompt, self.sampling_params)
-                content = outputs[0].outputs[0].text
-
-            except Exception as e:
-                print(f"ChatCompletion error: {e}")
-                return {"status_code": 500, "url": "local_vllm", "error": str(e)}
-
-            print(f"response time : {time.time() - start_time:.3f} sec")
-
-            return {"status_code": 200, "url": "local_vllm", "content": content}
 
 
 _qwen_instance = QwenLoader(mode="colab")  # 또는 "gcp"로 바꾸세요

@@ -18,20 +18,32 @@ jobs:
           PR_TITLE: ${{ github.event.pull_request.title }}
           PR_AUTHOR: ${{ github.event.pull_request.user.login }}
           PR_URL: ${{ github.event.pull_request.html_url }}
-          PR_BODY: ${{ github.event.pull_request.body || '내용 없음' }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_PR_URL }}
         run: |
-          # 이스케이프 처리
-          PR_BODY_ESCAPED=$(echo "$PR_BODY" | jq -Rs . | sed 's/^"//;s/"$//')
+          # PR_BODY가 없으면 기본 메시지 설정
+          SAFE_BODY="${PR_BODY:-내용 없음}"
 
-          # 메시지 전송
-          curl -H "Content-Type: application/json" \
-            -X POST \
-            -d "{\"embeds\": [
+          # description 길이 제한 (Discord는 4096자 제한 있음)
+          SAFE_BODY_TRUNCATED=$(echo "$SAFE_BODY" | head -c 3500)
+
+          # jq를 사용하여 안전한 JSON 생성
+          PAYLOAD=$(jq -n \
+            --arg title "✅ PR Merged to \`$BASE_BRANCH\`! [PR 링크]" \
+            --arg url "$PR_URL" \
+            --arg desc "**Title:** $PR_TITLE\n**Author:** $PR_AUTHOR\n\n📝 **Description:**\n\`\`\`\n$SAFE_BODY_TRUNCATED\n\`\`\`" \
+            '{
+              embeds: [
                 {
-                  \"title\": \"✅ PR Merged to \`$BASE_BRANCH\`! [PR 링크]\",
-                  \"url\": \"$PR_URL\",
-                  \"description\": \"**Title:** $PR_TITLE\\n**Author:** $PR_AUTHOR\\n\\n📝 **Description:**\\n\`\`\`\\n$PR_BODY_ESCAPED\\n\`\`\`\",
-                  \"color\": 3066993
+                  title: $title,
+                  url: $url,
+                  description: $desc,
+                  color: 3066993
                 }
               ]
-            }" "${{ secrets.DISCORD_WEBHOOK_PR_URL }}"
+            }')
+
+          # 메시지 전송
+          curl -v -X POST "$DISCORD_WEBHOOK" \
+            -H "Content-Type: application/json" \
+            -d "$PAYLOAD"
