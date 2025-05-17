@@ -4,8 +4,9 @@ on:
   pull_request:
     types: [closed]
     branches:
-      - main
-      - develop
+       - _never_run_this_branch
+#      - main
+#      - develop
 jobs:
   ai-ci:
     runs-on: ubuntu-latest
