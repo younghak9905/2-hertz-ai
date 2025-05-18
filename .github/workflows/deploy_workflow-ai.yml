@@ -84,7 +84,7 @@ jobs:
     steps:
       - name: Set environment
         run: |
-          echo "BRANCH=${{ github.ref_name }}" >> $GITHUB_ENV
+          BRANCH="${{ github.ref_name }}"
           echo "BRANCH=$BRANCH" >> $GITHUB_ENV
           echo "ZONE=${{ secrets.GCP_ZONE }}" >> $GITHUB_ENV
 
