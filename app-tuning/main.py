@@ -10,7 +10,7 @@ import os
 from api.endpoints.health_router import HealthRouter
 from api.endpoints.monitoring_router import PerformanceRouter
 from api.endpoints.tuning_router import TuningRouter
-from api.endpoints.users_post_router import UserPostRouter
+from api.endpoints.user_router import UserPostRouter
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import RedirectResponse

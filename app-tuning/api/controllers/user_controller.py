@@ -9,7 +9,7 @@ from typing import Dict
 from core.vector_database import list_similarities, list_users, reset_collections
 from fastapi import HTTPException
 from schemas.user_schema import BaseResponse, EmbeddingRegister
-from services.users_post_service import register_user
+from services.user_service import delete_user_metatdata, register_user
 
 logger = logging.getLogger(__name__)
 
@@ -73,3 +73,57 @@ async def create_user(user_data: EmbeddingRegister) -> Dict:
                 "data": None,
             },
         )
+
+
+async def delete_user_data(user_data: EmbeddingRegister) -> Dict:
+    """
+    새 사용자를 등록하고 임베딩 벡터를 생성하는 컨트롤러 함수
+
+    Args:
+        user_data: 사용자 등록 데이터 (Pydantic 모델)
+
+    Returns:
+        Dictionary containing the response code and result
+
+    Raises:
+        HTTPException: 오류 발생 시 적절한 상태 코드와 메시지를 포함한 예외 발생
+    """
+    try:
+        result = delete_user_metatdata(user_data)
+        return {"code": "USER_DELETE_SUCCESS", "data": result}
+    except HTTPException as http_ex:
+        logger.warning(f"[USER_DELETE_HTTP_ERROR] {http_ex.detail}")
+        raise
+    except Exception as e:
+        logger.exception(f"[USER_DELETE_FATAL_ERROR]: {str(e)}")  # 자동 traceback 포함
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "code": "USER_DELETE_ERVER_ERROR",
+                "data": None,
+            },
+        )
+
+
+"""
+
+async def get_user_data(user_data: EmbeddingRegister) -> Dict:
+
+    try:
+        result = await get_user_metadata(user_data)
+        return {"code": "USER_METADATA_SUCCESS", "data": result}
+    except HTTPException as http_ex:
+        logger.warning(f"[USER_METADATA_HTTP_ERROR] {http_ex.detail}")
+        raise
+    except Exception as e:
+        logger.exception(
+            f"[USER_METADATA_FATAL_ERROR]: {str(e)}"
+        )  # 자동 traceback 포함
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "code": "USER_METADATA_SERVER_ERROR",
+                "data": None,
+            },
+        )
+"""
