@@ -11,7 +11,12 @@ from core.enum_process import convert_to_korean
 
 # from app.core.matching_score import compute_matching_score
 from core.matching_score_optimized import compute_matching_score_optimized
-from core.vector_database import get_similarity_collection, get_user_collection
+from core.vector_database import (
+    clean_up_similarity,
+    delete_user,
+    get_similarity_collection,
+    get_user_collection,
+)
 from fastapi import HTTPException
 
 # from app.models.sbert_loader import model
@@ -81,12 +86,13 @@ def update_reverse_similarities(user_id: str, similarities: dict):
     for other_id, score in similarities.items():
         try:
             other_id = str(other_id)
+            # 1. similarity_collection에서 상대방 데이터 조회
             other_sim = get_similarity_collection().get(
                 ids=[other_id], include=["metadatas", "embeddings"]
             )
 
             if not other_sim or not other_sim.get("metadatas"):
-                # 역 유저가 similarity DB에 없을 경우, user_collection에서 로드
+                # 2. 없으면 user_profiles에서 embedding만 가져옴
                 other_user = get_user_collection().get(
                     ids=[other_id], include=["embeddings"]
                 )
@@ -95,17 +101,23 @@ def update_reverse_similarities(user_id: str, similarities: dict):
             else:
                 other_meta = other_sim["metadatas"][0]
                 other_embedding = other_sim["embeddings"][0]
-                reverse_map = json.loads(other_meta.get("similarities", "{}"))
+                try:
+                    reverse_map = json.loads(other_meta.get("similarities", "{}"))
+                except json.JSONDecodeError:
+                    reverse_map = {}
+
+                # 3. 값이 바뀐 경우에만 업데이트
+                if reverse_map.get(user_id) == score:
+                    continue
+
                 reverse_map[user_id] = score
 
+            # 4. 실제 벡터 등록/업데이트
             upsert_similarity(other_id, other_embedding, reverse_map)
 
         except Exception as e:
             print(f"[REVERSE_SIMILARITY_UPDATE_ERROR]: {other_id} / {e}")
-            raise HTTPException(
-                status_code=500,
-                detail={"code": "EMBEDDING_REGISTER_SERVER_ERROR", "message": str(e)},
-            )
+            raise RuntimeError(f"역방향 유사도 업데이트 실패: {e}")
 
 
 # 현재 유저가 저장하지 않은 상대방의 기존 유사도를 병합
@@ -329,3 +341,13 @@ async def register_user(user: EmbeddingRegister) -> dict:
         "matchedUserCount": similarity_result.get("updated_similarities", 0),
         "time_taken_seconds": elapsed,
     }
+
+
+# 전체 유저와의 매칭 스코어 계산 및 저장
+@logger.log_performance(operation_name="delete_user", include_memory=True)
+def delete_user_metatdata(user_id: int):
+    try:
+        clean_up_similarity(user_id)
+        delete_user(user_id)
+    except Exception as e:
+        raise RuntimeError(f"{user_id} 삭제 실패 {e}")

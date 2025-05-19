@@ -1,6 +1,7 @@
 # 벡터DB 관리(chromaDB 연동)
 
 # 로컬 ChromaDB 필요 임포트
+import json
 import os
 from http.client import HTTPException
 
@@ -78,6 +79,21 @@ def get_chroma_client():
         return None
 
 
+def check_database():
+    try:
+        client = get_chroma_client()
+        if client is None:
+            raise RuntimeError("ChromaDB 클라이언트를 사용할 수 없습니다.")
+
+        # 전역 캐시 초기화
+        global user_collection, similarity_collection
+        user_collection = client.get_or_create_collection("user_profiles")
+        similarity_collection = client.get_or_create_collection("user_similarities")
+
+    except Exception as e:
+        raise RuntimeError(f"ChromaDB 컬렉션 초기화 실패: {e}")
+
+
 def get_user_collection():
     global user_collection
     try:
@@ -107,7 +123,7 @@ def get_similarity_collection():
     try:
         if similarity_collection is not None:
             try:
-                similarity_collection.count()  # 또는 get(ids=[]) 등으로 연결 확인
+                similarity_collection.count()
                 return similarity_collection
             except:
                 print(" similarity_collection 무효화됨. 재생성 시도.")
@@ -139,6 +155,7 @@ def get_user_data(user_id: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+#  ChromaDB 데이터베이스 컬렉션 삭제 후, 재생성(내부 테스트용)
 def reset_collections():
     try:
         client = get_chroma_client()
@@ -156,6 +173,84 @@ def reset_collections():
 
     except Exception as e:
         raise RuntimeError(f"ChromaDB 컬렉션 초기화 실패: {e}")
+
+
+# 회원 삭제
+def delete_user(user_id: int):
+    """
+    user_profiles와 similarity_collection에서 해당 유저 직접 삭제
+    """
+    try:
+        check_database()
+        user_id = str(user_id)
+
+        user_collection.delete(ids=[str(user_id)])
+        similarity_collection.delete(ids=[str(user_id)])
+
+    except Exception as e:
+        raise RuntimeError(f"ChromaDB 컬렉션 초기화 실패: {e}")
+
+
+def clean_up_similarity(user_id: int) -> int:
+    user_id = str(user_id)
+    try:
+        check_database()
+        all_docs = similarity_collection.get(include=["metadatas"])
+
+        ids = all_docs.get("ids", [])
+        metadatas = all_docs.get("metadatas", [])
+
+        if not ids:
+            print("⚠️ similarity_collection에는 삭제할 대상이 없습니다.")
+            return 0
+
+        updates_made = 0
+
+        for doc_id, metadata in zip(ids, metadatas):
+            raw_json = metadata.get("similarities")
+            if not raw_json:
+                continue
+
+            try:
+                similarities = json.loads(raw_json)
+            except json.JSONDecodeError as decode_err:
+                print(f"⚠️ JSON 파싱 실패 - 문서 ID {doc_id}, 오류: {decode_err}")
+                continue
+
+            # 삭제 대상 user_id가 존재하면 제거 및 업데이트
+            if user_id in similarities:
+                del similarities[user_id]
+                metadata["similarities"] = json.dumps(similarities)
+
+                try:
+                    similarity_collection.update(ids=[doc_id], metadatas=[metadata])
+                    updates_made += 1
+                except Exception as update_err:
+                    print(f"❌ 문서 ID '{doc_id}' 업데이트 실패: {update_err}")
+
+        print(f"✅ 총 {updates_made}개의 문서에서 user_id '{user_id}' 제거 완료")
+        return updates_made
+
+    except Exception as e:
+        print(f"❌ similarity_collection 정리 중 전체 오류 발생: {e}")
+        raise
+
+
+def get_user_metadata(user_id: int, user_collection):
+    user_id = str(user_id)
+    try:
+        result = user_collection.get(ids=[user_id], include=["metadatas"])
+
+        if result and result["metadatas"]:
+            metadata = result["metadatas"][0]
+            print(f"✅ user_id '{user_id}'에 대한 메타데이터: {metadata}")
+            return metadata
+        else:
+            print(f"⚠️ user_id '{user_id}'에 대한 메타데이터를 찾을 수 없습니다.")
+            return None
+
+    except Exception as e:
+        raise RuntimeError(f"user_id '{user_id}'의 메타데이터 조회 중 오류 발생: {e}")
 
 
 async def get_users_data(user_ids: list[str]):

@@ -12,7 +12,7 @@ python-dotenv==1.1.0
 chromadb==0.4.13  # HttpClient 포함, FastAPI와 충돌 없음
 sentence-transformers==4.1.0
 scikit-learn==1.6.1
-numpy==2.2.5
+numpy==1.26.4
 
 # logger
 psutil==7.0.0
