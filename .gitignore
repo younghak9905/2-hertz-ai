@@ -16,6 +16,10 @@ __pycache__/
 # text files
 *.txt
 
+# requirements.txt는 무시하지 않음
+!requirements.txt
+!requirements-dev.txt
+
 # JSON files
 *.json
 
