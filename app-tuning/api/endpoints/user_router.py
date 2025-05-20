@@ -5,7 +5,7 @@
 """
 
 from api.controllers import user_controller
-from fastapi import APIRouter, Body, Query
+from fastapi import APIRouter, Body, Path
 from schemas.user_schema import BaseResponse, EmbeddingRegister
 
 
@@ -52,16 +52,16 @@ class UserPostRouter:
             self.db_reset_data,
             methods=["DELETE"],
             response_model=BaseResponse,
-            summary="(테스트 환경 리셋을 위한 용도)",
-            description="벡터DB-collection에 저장된 모든 데이터를 초기화 합니다.",
+            summary="(테스트 환경 리셋을 전체 DB 초기화)",
+            description="<주의>벡터DB-collection에 저장된 모든 데이터를 초기화 합니다.",
         )
         self.router.add_api_route(
-            "/v2/delete",
+            "/v2/users/{user_id}",
             self.delete_user_data,
             methods=["DELETE"],
             response_model=BaseResponse,
             summary="사용자 삭제",
-            description="벡터 데이터베이스에서 해당 사용자를 삭제합니다.",
+            description="벡터 데이터베이스에서 사용자 데이터를 삭제합니다.",
         )
 
     async def db_user_list(self) -> BaseResponse:
@@ -101,26 +101,27 @@ class UserPostRouter:
         return await user_controller.create_user(user_data)
 
     async def delete_user_data(
-        self, user_id: int = Query(..., description="사용자 등록 데이터")
+        self, user_id: int = Path(..., description="삭제할 사용자의 ID")
     ) -> BaseResponse:
         """
-        신규 사용자를 등록 후 임베딩 벡터 생성
+        사용자 데이터 삭제
 
-        - **user_data**: 사용자 등록 정보 (개인정보, 키워드, 관심사 등)
+        - **user_id**: 사용자 아이디
 
         **응답 예시**:
         ```json
         {
-          "code": "EMBEDDING_REGISTER_SUCCESS",
+          "code": "EMBEDDING_DELETE_SUCCESS",
           "data": null
         }
         ```
 
+
         **오류 응답**:
-        - 409 Conflict: 이미 존재하는 사용자 ID
+        - 404 Conflict: 없는 사용자 데이터 삭제 시 오류
         ```json
         {
-          "code": "EMBEDDING_REGISTER_CONFLICT",
+          "code": "EMBEDDING_DELETE_NOT_FOUND_USER",
           "data": null
         }
         ```
