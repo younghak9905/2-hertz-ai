@@ -61,18 +61,22 @@ def log_performance(operation_name: Optional[str] = None, include_memory: bool =
             bound_args = signature(func).bind(*args, **kwargs)
             bound_args.apply_defaults()
 
-            user_id = bound_args.arguments.get("user_id") or bound_args.arguments.get(
-                "userId"
+            user_id = (
+                kwargs.get("user_id")
+                or kwargs.get("userId")
+                or (args[0] if args and isinstance(args[0], (str, int)) else None)
             )
 
-            # 없으면 객체 속성에서 탐색
+            # 객체나 딕셔너리 내부 속성에서 추출
             if not user_id:
                 for arg in bound_args.arguments.values():
-                    if hasattr(arg, "user_id"):
+                    if isinstance(arg, dict):
+                        user_id = arg.get("user_id") or arg.get("userId")
+                    elif hasattr(arg, "user_id"):
                         user_id = getattr(arg, "user_id")
-                        break
                     elif hasattr(arg, "userId"):
                         user_id = getattr(arg, "userId")
+                    if user_id:
                         break
 
             user_id = str(user_id) if user_id is not None else "unknown"
@@ -142,13 +146,27 @@ def log_performance(operation_name: Optional[str] = None, include_memory: bool =
             # 작업 이름 결정
             op_name = operation_name or func.__name__
 
+            bound_args = signature(func).bind(*args, **kwargs)
+            bound_args.apply_defaults()
             # 유저 ID 추출 시도
-            user_id = kwargs.get("user_id", None)
-            if user_id is None and len(args) > 0:
-                if isinstance(args[0], dict) and "userId" in args[0]:
-                    user_id = args[0]["userId"]
-                elif hasattr(args[0], "userId"):
-                    user_id = args[0].userId
+            user_id = (
+                kwargs.get("user_id")
+                or kwargs.get("userId")
+                or (args[0] if args and isinstance(args[0], (str, int)) else None)
+            )
+
+            # 객체 속성 탐색
+            if not user_id:
+                for arg in bound_args.arguments.values():
+                    if isinstance(arg, dict) and ("user_id" in arg or "userId" in arg):
+                        user_id = arg.get("user_id") or arg.get("userId")
+                        break
+                    if hasattr(arg, "user_id"):
+                        user_id = getattr(arg, "user_id")
+                        break
+                    if hasattr(arg, "userId"):
+                        user_id = getattr(arg, "userId")
+                        break
 
             user_id = str(user_id) if user_id is not None else "unknown"
 
