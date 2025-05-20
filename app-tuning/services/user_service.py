@@ -349,5 +349,14 @@ def delete_user_metatdata(user_id: int):
     try:
         clean_up_similarity(user_id)
         delete_user(user_id)
+        return {"code": "EMBEDDING_DELETE_SUCCESS", "data": None}
+    except HTTPException as http_ex:
+        raise http_ex
     except Exception as e:
-        raise RuntimeError(f"{user_id} 삭제 실패 {e}")
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "code": "EMBEDDING_DELETE_SERVER_ERROR",
+                "message": str(e),
+            },
+        )
