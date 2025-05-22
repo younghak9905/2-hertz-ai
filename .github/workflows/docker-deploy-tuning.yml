@@ -90,7 +90,7 @@ jobs:
        else
          ENV_TAG="develop-latest"
        fi
-       ECR_REGISTRY=${{ steps.login-ecr.outputs.registry }}
+       REGISTRY="${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com"
        REPOSITORY=tuning-api
        FULL_IMAGE="$ECR_REGISTRY/$REPOSITORY:$IMAGE_TAG"
 
