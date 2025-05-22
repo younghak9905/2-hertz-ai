@@ -115,17 +115,17 @@ jobs:
       id: base-exists
       continue-on-error: true
       run: |
-        docker pull $ECR/$BASE_IMAGE_NAME:${{ steps.basehash.outputs.base_hash }}
+        docker pull $ECR_REGISTRY/$BASE_IMAGE_NAME:${{ steps.basehash.outputs.base_hash }}
 
     - name: Build & Push Base Image (only if not exists)
       if: steps.base-exists.outcome == 'failure'
       run: |
         docker build \
           -f Dockerfile.base-tuning \
-          -t $ECR/$BASE_IMAGE_NAME:${{ steps.basehash.outputs.base_hash }} \
-          -t $ECR/$BASE_IMAGE_NAME:latest .
-        docker push $ECR/$BASE_IMAGE_NAME:${{ steps.basehash.outputs.base_hash }}
-        docker push $ECR/$BASE_IMAGE_NAME:latest
+          -t $ECR_REGISTRY/$BASE_IMAGE_NAME:${{ steps.basehash.outputs.base_hash }} \
+          -t $ECR_REGISTRY/$BASE_IMAGE_NAME:latest .
+        docker push $ECR_REGISTRY/$BASE_IMAGE_NAME:${{ steps.basehash.outputs.base_hash }}
+        docker push $ECR_REGISTRY/$BASE_IMAGE_NAME:latest
     # ✅ PROD 이미지 빌드 + 캐시 사용 + 푸시
     - name: Build & Push Prod Image (with base layer cache)
       env:
@@ -138,16 +138,16 @@ jobs:
         echo "🏗️ Docker prod 이미지 빌드 시작 (base: $BASE_URI)..."
         docker build \
           --build-arg BASE_IMAGE_URI=$BASE_URI \
-          --cache-from=type=registry,ref=$ECR/$REPOSITORY:$ENV_TAG \
+          --cache-from=type=registry,ref=$ECR_REGISTRY/$REPOSITORY:$ENV_TAG \
           --cache-to=type=inline \
           -f Dockerfile.prod-tuning \
-          -t $ECR/$REPOSITORY:$IMAGE_TAG .
+          -t $ECR_REGISTRY/$REPOSITORY:$IMAGE_TAG .
 
-        docker tag $ECR/$REPOSITORY:$IMAGE_TAG $ECR/$REPOSITORY:$ENV_TAG
+        docker tag $ECR_REGISTRY/$REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$REPOSITORY:$ENV_TAG
 
         echo "📤 Docker prod 이미지 푸시 중..."
-        docker push $ECR/$REPOSITORY:$IMAGE_TAG
-        docker push $ECR/$REPOSITORY:$ENV_TAG
+        docker push $ECR_REGISTRY/$REPOSITORY:$IMAGE_TAG
+        docker push $ECR_REGISTRY/$REPOSITORY:$ENV_TAG
 
 
     - name: Send success notification
