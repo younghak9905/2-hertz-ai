@@ -16,5 +16,7 @@ ENV CHROMA_HOST=host.docker.internal
 ENV CHROMA_PORT=8001
 ENV ALLOW_RESET=false
 
+LABEL base_image_uri=${BASE_HASH}
+
 EXPOSE 8000
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]

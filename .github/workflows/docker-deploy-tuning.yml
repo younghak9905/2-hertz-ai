@@ -133,16 +133,17 @@ jobs:
     # ✅ PROD 이미지 빌드 + 캐시 사용 + 푸시
     - name: Build & Push Prod Image (with base layer cache)
       run: |
-      
+        
         ECR_REGISTRY=${{ steps.login-ecr.outputs.registry }} 
         REPOSITORY=tuning-api
         IMAGE_TAG=${{ steps.generate-tags.outputs.image_tag }}
         ENV_TAG=${{ steps.generate-tags.outputs.env_tag }}
-        BASE_URI=$ECR/$BASE_IMAGE_NAME:${{ steps.basehash.outputs.base_hash }}
-
+        BASE_HASH=${{ steps.basehash.outputs.base_hash }}
+        BASE_URI=$ECR_REGISTRY/$BASE_IMAGE_NAME:$BASE_HASH
         echo "🏗️ Docker prod 이미지 빌드 시작 (base: $BASE_URI)..."
         docker build \
           --build-arg BASE_IMAGE_URI=$BASE_URI \
+          --build-arg BASE_HASH=$BASE_HASH \
           --cache-from=type=registry,ref=$ECR_REGISTRY/$REPOSITORY:$ENV_TAG \
           --cache-to=type=inline \
           -f Dockerfile.prod-tuning \
