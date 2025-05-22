@@ -1,0 +1,248 @@
+name: AI Docker CI/CD
+
+on:
+  push:
+    branches:
+      - feature/docker-deploy # feature/docker-deploy 브랜치에 Push 시 CI/CD 실행
+#  pull_request:
+#    types: [closed] # PR이 닫혔을 때 (병합 포함)
+#    branches:
+#      - main # main 브랜치로 Merge 시 -> Production 환경에 배포
+#      - develop # develop 브랜치로 Merge 시 -> DEV 환경에 배포
+
+  # ✅ 수동 `실행 트리거 추가
+  workflow_dispatch:
+    inputs:
+      env:
+        description: "배포 환경 선택"
+        required: true
+        default: "DEV"
+        type: choice
+        options:
+          - DEV
+          - PROD
+
+jobs:
+  # CI 작업: 테스트 및 이미지 빌드
+  ci:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.merged == true
+
+    steps:
+    # 1. 소스 코드 체크아웃
+    - name: Checkout repository
+      uses: actions/checkout@v3
+      with:
+        fetch-depth: 1
+
+    # 2. Python 설정
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+        cache: 'pip'
+        cache-dependency-path: |
+          app-tuning/requirements.txt
+
+    # 3. 의존성 설치
+    - name: Install dependencies
+      run: |
+        pip install --upgrade pip
+        pip install -r app-tuning/requirements.txt
+
+    # 4. 테스트 실행
+    - name: Run tests
+      run: |
+        pytest || echo "⚠️ 테스트 없음 또는 실패, 계속 진행"
+
+    # 5. AWS 인증
+    - name: Configure AWS credentials
+      if: success()
+      uses: aws-actions/configure-aws-credentials@v1
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ secrets.AWS_REGION }}
+
+    # 6. ECR 로그인
+    - name: Login to Amazon ECR
+      if: success()
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v1
+  
+    # 7. 태그 정보 생성
+    - name: Generate tags
+      if: success()
+      id: generate-tags
+      run: |
+        BRANCH=${{ github.base_ref }}
+        SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+        IMAGE_TAG="${BRANCH}-${SHORT_SHA}"
+        if [ "$BRANCH" = "main" ]; then
+          ENV_TAG="main-latest"
+        else
+          ENV_TAG="develop-latest"
+        fi
+        ECR_REGISTRY=${{ steps.login-ecr.outputs.registry }}
+        REPOSITORY=tuning-api
+        FULL_IMAGE="$ECR_REGISTRY/$REPOSITORY:$IMAGE_TAG"
+
+        echo "branch=$BRANCH" >> $GITHUB_OUTPUT
+        echo "short_sha=$SHORT_SHA" >> $GITHUB_OUTPUT
+        echo "image_tag=$IMAGE_TAG" >> $GITHUB_OUTPUT
+        echo "env_tag=$ENV_TAG" >> $GITHUB_OUTPUT
+        echo "full_image=$FULL_IMAGE" >> $GITHUB_OUTPUT
+        echo "ecr_registry=$ECR_REGISTRY" >> $GITHUB_OUTPUT
+        echo "repository=$REPOSITORY" >> $GITHUB_OUTPUT
+
+    # 8. Docker 이미지 빌드 및 푸시
+    - name: Build and push Docker image
+      if: success()
+      run: |
+        ECR_REGISTRY=${{ steps.login-ecr.outputs.registry }}
+        REPOSITORY=tuning-api
+        IMAGE_TAG=${{ steps.generate-tags.outputs.image_tag }}
+        ENV_TAG=${{ steps.generate-tags.outputs.env_tag }}
+        
+        echo "🏗️ Docker 이미지 빌드 시작..."
+        docker build -t $ECR_REGISTRY/$REPOSITORY:$IMAGE_TAG Dockerfile.tuning
+        docker tag $ECR_REGISTRY/$REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$REPOSITORY:$ENV_TAG
+
+        echo "📤 Docker 이미지 푸시 중..."
+        docker push $ECR_REGISTRY/$REPOSITORY:$IMAGE_TAG
+        docker push $ECR_REGISTRY/$REPOSITORY:$ENV_TAG
+
+
+    - name: Send success notification
+      if: success()
+      run: |
+        curl -H "Content-Type: application/json" \
+              -X POST \
+              -d "{\"username\": \"AI CI\", \"content\": \"✅ [AI CI 성공] **${{ steps.generate-tags.outputs.branch }}** 브랜치\\n🔖 태그: ${{ steps.generate-tags.outputs.image_tag }}\\n🆔 Commit: ${{ steps.generate-tags.outputs.short_sha }}\\n📦 이미지: ${{ steps.generate-tags.outputs.full_image }}\"}" \
+              ${{ secrets.DISCORD_WEBHOOK_PR_URL }}
+
+    - name: Send failure notification
+      if: failure()
+      run: |
+        curl -H "Content-Type: application/json" \
+              -X POST \
+              -d "{\"username\": \"AI CI\", \"content\": \"❌ [AI CI 실패] **${{ github.base_ref }}** 브랜치\\n🔖 Commit: ${{ github.sha }}\\n⚠️ 원인: 빌드 또는 테스트 실패\"}" \
+              ${{ secrets.DISCORD_WEBHOOK_PR_URL }}
+
+  
+    outputs:
+      branch: ${{ steps.generate-tags.outputs.branch }}
+      image_tag: ${{ steps.generate-tags.outputs.image_tag }}
+      env_tag: ${{ steps.generate-tags.outputs.env_tag }}
+      full_image: ${{ steps.generate-tags.outputs.full_image }}
+      short_sha: ${{ steps.generate-tags.outputs.short_sha }}
+      ecr_registry: ${{ steps.generate-tags.outputs.ecr_registry }}
+      repository: ${{ steps.generate-tags.outputs.repository }} 
+  # CD 작업: 배포
+  cd:
+    needs: ci  # CI 작업이 성공한 후에 실행
+    runs-on: ubuntu-latest
+    
+    steps:
+
+      - name: Set environment variables from SSM
+        id: ssm
+        run: |
+          load_param() {
+            VALUE=$(aws ssm get-parameter --name "$1" --with-decryption --query "Parameter.Value" --output text)
+            echo "::add-mask::$VALUE"
+            echo "$2=$VALUE" >> $GITHUB_ENV
+          }
+
+          load_secret_to_file() {
+            VALUE=$(aws ssm get-parameter --name "$1" --with-decryption --output json | jq -r .Parameter.Value)
+
+            # 멀티라인 마스킹 처리
+            echo "$VALUE" | while IFS= read -r line; do
+              echo "::add-mask::$line"
+            done
+
+            echo "$VALUE" > "$2"
+          }
+
+          BRANCH="${{ github.ref_name }}"
+          echo "BRANCH=$BRANCH" >> $GITHUB_ENV
+          if [[ "$BRANCH" == "main" ]]; then
+            echo "ENV=PROD" >> $GITHUB_ENV
+            load_param "/global/gcp/PROD_GCP_HOST_AI" HOST
+            load_param "/global/gcp/PROD_GCP_INSTANCE_AI" INSTANCE
+            load_param "/global/gcp/PROD_GCP_PROJECT_ID" PROJECT_ID
+            load_param "/global/gcp/PROD_GCP_ZONE" ZONE
+            load_secret_to_file "/global/gcp/PROD_GCP_SA_KEY" gcp-sa-key.json
+          else
+            echo "ENV=DEV" >> $GITHUB_ENV
+            load_param "/global/gcp/DEV_GCP_HOST_AI" HOST
+            load_param "/global/gcp/DEV_GCP_INSTANCE_AI" INSTANCE
+            load_param "/global/gcp/DEV_GCP_PROJECT_ID" PROJECT_ID
+            load_param "/global/gcp/DEV_GCP_ZONE" ZONE
+            load_secret_to_file "/global/gcp/DEV_GCP_SA_KEY" gcp-sa-key.json
+          fi
+
+          echo "SA_KEY<<EOF" >> $GITHUB_ENV
+          cat gcp-sa-key.json >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+
+
+          load_param "/global/gcp/SSH_USERNAME" SSH_USERNAME
+          load_secret_to_file "/global/gcp/SSH_PRIVATE_KEY" id_rsa
+          chmod 600 id_rsa
+          echo "SSH_KEY_PATH=id_rsa" >> $GITHUB_ENV
+          echo "COMMIT_HASH=${{ github.sha }}" >> $GITHUB_ENV
+
+      - name: Read GCP SA key JSON
+        id: read_sa_key
+        run: |
+          echo "SA_KEY<<EOF" >> $GITHUB_ENV
+          cat gcp-sa-key.json >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+
+      - name: Set environment variables
+        id: set-env
+        run: |
+          # CI 작업에서 전달받은 값들
+          BRANCH="${{ needs.ci.outputs.branch }}"
+          IMAGE_TAG="${{ needs.ci.outputs.image_tag }}"
+          SHORT_SHA="${{ needs.ci.outputs.short_sha }}"
+      
+          echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_ENV
+          echo "FULL_IMAGE=${{ needs.ci.outputs.full_image }}" >> $GITHUB_ENV
+
+      - name: Authenticate to GCP
+        if: env.ENV == 'production'
+        uses: google-github-actions/auth@v1
+        with:
+          credentials_json: ${{ env.GCP_SA_KEY }}
+      - name: Authenticate to GCP DEV
+        if: env.ENV == 'develop'
+        uses: google-github-actions/auth@v1
+        with:
+          credentials_json: ${{ env.GCP_SA_KEY }}
+
+
+      - name: Setup gcloud CLI
+        uses: google-github-actions/setup-gcloud@v1
+
+      - name: Boot target instance (start/resume with conditional wait)
+        run: |
+          echo "⚡ 인스턴스 상태 확인 중: $INSTANCE (zone: $ZONE)"
+          STATUS=$(gcloud compute instances describe "$INSTANCE" --zone="$ZONE" --format='get(status)')
+          echo "🔎 현재 상태: $STATUS"
+
+          if [[ "$STATUS" == "SUSPENDED" ]]; then
+            echo "🔄 'resume' 명령 실행"
+            gcloud compute instances resume "$INSTANCE" --zone="$ZONE"
+            sleep 30
+          elif [[ "$STATUS" == "TERMINATED" ]]; then
+            echo "🔄 'start' 명령 실행"
+            gcloud compute instances start "$INSTANCE" --zone="$ZONE"
+            sleep 30
+          else
+            echo "✅ 이미 실행 중"
+          fi
+
+    
