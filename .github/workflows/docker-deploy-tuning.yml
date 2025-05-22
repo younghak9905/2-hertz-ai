@@ -73,7 +73,9 @@ jobs:
       if: success()
       id: generate-tags
       run: |
+      
         BRANCH=${{ github.base_ref }}
+        BRANCH=${{ github.ref_name }}
         SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
         IMAGE_TAG="${BRANCH}-${SHORT_SHA}"
         if [ "$BRANCH" = "main" ]; then
