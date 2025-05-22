@@ -26,8 +26,6 @@ jobs:
   # CI 작업: 테스트 및 이미지 빌드
   ci:
     runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.merged == true
-
     steps:
     # 1. 소스 코드 체크아웃
     - name: Checkout repository
