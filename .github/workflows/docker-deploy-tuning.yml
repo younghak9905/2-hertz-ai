@@ -90,7 +90,7 @@ jobs:
        else
          ENV_TAG="develop-latest"
        fi
-       REGISTRY="${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com"
+       ECR_REGISTRY=${{ steps.login-ecr.outputs.registry }}
        REPOSITORY=tuning-api
        FULL_IMAGE="$ECR_REGISTRY/$REPOSITORY:$IMAGE_TAG"
 
@@ -115,11 +115,15 @@ jobs:
       id: base-exists
       continue-on-error: true
       run: |
+        ECR_REGISTRY=${{ steps.login-ecr.outputs.registry }}
         docker pull $ECR_REGISTRY/$BASE_IMAGE_NAME:${{ steps.basehash.outputs.base_hash }}
 
     - name: Build & Push Base Image (only if not exists)
       if: steps.base-exists.outcome == 'failure'
       run: |
+        ECR_REGISTRY=${{ steps.login-ecr.outputs.registry }}
+        IMAGE_TAG=${{ steps.generate-tags.outputs.image_tag }}
+        ENV_TAG=${{ steps.generate-tags.outputs.env_tag }}"
         docker build \
           -f Dockerfile.base-tuning \
           -t $ECR_REGISTRY/$BASE_IMAGE_NAME:${{ steps.basehash.outputs.base_hash }} \
@@ -128,11 +132,12 @@ jobs:
         docker push $ECR_REGISTRY/$BASE_IMAGE_NAME:latest
     # ✅ PROD 이미지 빌드 + 캐시 사용 + 푸시
     - name: Build & Push Prod Image (with base layer cache)
-      env:
-        REPOSITORY: ${{ env.PROD_IMAGE_NAME }}
-        IMAGE_TAG: ${{ env.IMAGE_TAG }}
-        ENV_TAG: ${{ env.ENV_TAG }}
       run: |
+      
+        ECR_REGISTRY=${{ steps.login-ecr.outputs.registry }} 
+        REPOSITORY=tuning-api
+        IMAGE_TAG=${{ steps.generate-tags.outputs.image_tag }}
+        ENV_TAG=${{ steps.generate-tags.outputs.env_tag }}
         BASE_URI=$ECR/$BASE_IMAGE_NAME:${{ steps.basehash.outputs.base_hash }}
 
         echo "🏗️ Docker prod 이미지 빌드 시작 (base: $BASE_URI)..."
