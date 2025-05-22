@@ -21,7 +21,9 @@ on:
         options:
           - DEV
           - PROD
-
+env:
+  BASE_IMAGE_NAME: base
+  PROD_IMAGE_NAME: tuning-api
 jobs:
   # CI 작업: 테스트 및 이미지 빌드
   ci:
@@ -100,27 +102,53 @@ jobs:
        echo "ecr_registry=$ECR_REGISTRY" >> $GITHUB_OUTPUT
        echo "repository=$REPOSITORY" >> $GITHUB_OUTPUT
    
-
-    # 8. Docker 이미지 빌드 및 푸시
-    - name: Build and push Docker image with cache
-      env:
-        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-        REPOSITORY: tuning-api
-        IMAGE_TAG: ${{ steps.generate-tags.outputs.image_tag }}
-        ENV_TAG: ${{ steps.generate-tags.outputs.env_tag }}
+    # 🧠 BASE 이미지 해시 생성
+    - name: Compute base image hash
+      id: basehash
       run: |
-        echo "🏗️ Docker 이미지 빌드 시작 (with cache)..."
-        docker build \
-          --cache-from=type=registry,ref=$ECR_REGISTRY/$REPOSITORY:$ENV_TAG \
-          --cache-to=type=inline \
-          -f Dockerfile.tuning \
-          -t $ECR_REGISTRY/$REPOSITORY:$IMAGE_TAG \
-          .
-        docker tag $ECR_REGISTRY/$REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$REPOSITORY:$ENV_TAG
+        HASH=$(cat Dockerfile.base requirements.txt | sha256sum | cut -c1-12)
+        echo "BASE_HASH=$HASH" >> $GITHUB_ENV
+        echo "base_hash=$HASH" >> $GITHUB_OUTPUT
+    # 🏗️ BASE 이미지 빌드 + 푸시 (없을 때만)
+    # ✅ BASE 이미지 캐시 여부 확인
+    - name: Check if base image exists in ECR
+      id: base-exists
+      continue-on-error: true
+      run: |
+        docker pull $ECR/$BASE_IMAGE_NAME:${{ steps.basehash.outputs.base_hash }}
 
-        echo "📤 Docker 이미지 푸시 중..."
-        docker push $ECR_REGISTRY/$REPOSITORY:$IMAGE_TAG
-        docker push $ECR_REGISTRY/$REPOSITORY:$ENV_TAG
+    - name: Build & Push Base Image (only if not exists)
+      if: steps.base-exists.outcome == 'failure'
+      run: |
+        docker build \
+          -f Dockerfile.base-tuning \
+          -t $ECR/$BASE_IMAGE_NAME:${{ steps.basehash.outputs.base_hash }} \
+          -t $ECR/$BASE_IMAGE_NAME:latest .
+        docker push $ECR/$BASE_IMAGE_NAME:${{ steps.basehash.outputs.base_hash }}
+        docker push $ECR/$BASE_IMAGE_NAME:latest
+    # ✅ PROD 이미지 빌드 + 캐시 사용 + 푸시
+    - name: Build & Push Prod Image (with base layer cache)
+      env:
+        REPOSITORY: ${{ env.PROD_IMAGE_NAME }}
+        IMAGE_TAG: ${{ env.IMAGE_TAG }}
+        ENV_TAG: ${{ env.ENV_TAG }}
+      run: |
+        BASE_URI=$ECR/$BASE_IMAGE_NAME:${{ steps.basehash.outputs.base_hash }}
+
+        echo "🏗️ Docker prod 이미지 빌드 시작 (base: $BASE_URI)..."
+        docker build \
+          --build-arg BASE_IMAGE_URI=$BASE_URI \
+          --cache-from=type=registry,ref=$ECR/$REPOSITORY:$ENV_TAG \
+          --cache-to=type=inline \
+          -f Dockerfile.prod-tuning \
+          -t $ECR/$REPOSITORY:$IMAGE_TAG .
+
+        docker tag $ECR/$REPOSITORY:$IMAGE_TAG $ECR/$REPOSITORY:$ENV_TAG
+
+        echo "📤 Docker prod 이미지 푸시 중..."
+        docker push $ECR/$REPOSITORY:$IMAGE_TAG
+        docker push $ECR/$REPOSITORY:$ENV_TAG
+
 
     - name: Send success notification
       if: success()

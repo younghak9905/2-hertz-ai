@@ -1,0 +1,25 @@
+# Dockerfile.base
+FROM python:3.10-slim
+WORKDIR /app
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONPATH=/app \
+    PORT=8000 \
+    OMP_NUM_THREADS=1 \
+    MKL_NUM_THREADS=1 \
+    NUMEXPR_NUM_THREADS=1 \
+    OPENBLAS_NUM_THREADS=1 \
+    LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libjemalloc.so.2
+
+# 런타임 라이브러리 설치 (앱에서 공통 사용되는 것만)
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    libsqlite3-dev libjemalloc2 libjemalloc-dev && \
+    rm -rf /var/lib/apt/lists/*
+
+# requirements 복사 및 설치
+COPY ./app-tuning/requirements.txt .
+RUN pip install --upgrade pip setuptools wheel && \
+    pip install --no-cache-dir -r requirements.txt && \
+    pip cache purge

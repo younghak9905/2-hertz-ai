@@ -1,6 +1,6 @@
 # 속도 최우선: full python 이미지 사용
-FROM python:3.10
-
+#FROM python:3.10
+FROM python:3.10-slim
 WORKDIR /app
 
 ENV PYTHONUNBUFFERED=1 \
@@ -14,8 +14,13 @@ ENV PYTHONUNBUFFERED=1 \
     LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libjemalloc.so.2 
 
 # 필수 패키지만 빠르게 설치 (소스 빌드 없음)
-RUN apt-get update && apt-get install -y \
-    sqlite3 libsqlite3-dev libjemalloc-dev
+#RUN apt-get update && apt-get install -y \
+#    sqlite3 libsqlite3-dev libjemalloc-dev
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    libsqlite3-dev libjemalloc2 libjemalloc-dev && \
+    rm -rf /var/lib/apt/lists/*
 
 
 # requirements 복사 및 설치 (PIP 캐시 사용 → 속도 빠름)

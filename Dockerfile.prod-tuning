@@ -1,0 +1,20 @@
+# Dockerfile.prod
+
+ARG BASE_IMAGE_URI
+FROM ${BASE_IMAGE_URI}
+
+WORKDIR /app
+
+# 앱 코드 복사
+COPY ./app-tuning /app
+
+# 환경 변수 (필요한 경우 재정의)
+ENV PYTHONPATH=/app
+ENV ENVIRONMENT=prod
+ENV CHROMA_MODE=server
+ENV CHROMA_HOST=host.docker.internal
+ENV CHROMA_PORT=8001
+ENV ALLOW_RESET=false
+
+EXPOSE 8000
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
