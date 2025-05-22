@@ -51,15 +51,12 @@ jobs:
       run: |
      
        BRANCH=${{ github.base_ref }}
-       BRANCH=${{ github.ref_name }}
-     
        BRANCH="${{ github.ref_name }}"
        SANITIZED_BRANCH="${BRANCH//\//-}"
        SANITIZED_BRANCH=$(echo "$SANITIZED_BRANCH" | sed 's#[^a-zA-Z0-9_.-]#-#g')
        BRANCH="$SANITIZED_BRANCH"   # 다시 덮어쓰기 (or IMAGE_TAG에 바로 SANITIZED_BRANCH 써도 됨)
        SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
        IMAGE_TAG="${BRANCH}-${SHORT_SHA}"    # 공백 없이!
-       
        if [ "$BRANCH" = "main" ]; then
          ENV_TAG="main-latest"
        else
@@ -77,7 +74,10 @@ jobs:
        echo "ecr_registry=$ECR_REGISTRY" >> $GITHUB_OUTPUT
        echo "repository=$REPOSITORY" >> $GITHUB_OUTPUT
        
-
+    - name: Debug outputs
+      run: |
+         echo "branch=${{ steps.generate-tags.outputs.branch }}"
+         echo "image_tag=${{ steps.generate-tags.outputs.image_tag }}"    
    # 8. Docker 이미지 빌드 및 푸시
     - name: Build and push Docker image
       if: success()
@@ -125,7 +125,7 @@ jobs:
         ENV_TAG=${{ steps.generate-tags.outputs.env_tag }}
     
         echo "🏗️ Docker 이미지 빌드 시작..."
-        docker build -t $ECR_REGISTRY/$REPOSITORY:$IMAGE_TAG Dockerfile.tuning
+        docker build -f Dockerfile.tuning -t $ECR_REGISTRY/$REPOSITORY:$IMAGE_TAG .
         docker tag $ECR_REGISTRY/$REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$REPOSITORY:$ENV_TAG
 
         echo "📤 Docker 이미지 푸시 중..."
@@ -140,15 +140,6 @@ jobs:
               -X POST \
               -d "{\"username\": \"AI CI\", \"content\": \"✅ [AI CI 성공] **${{ steps.generate-tags.outputs.branch }}** 브랜치\\n🔖 태그: ${{ steps.generate-tags.outputs.image_tag }}\\n🆔 Commit: ${{ steps.generate-tags.outputs.short_sha }}\\n📦 이미지: ${{ steps.generate-tags.outputs.full_image }}\"}" \
               ${{ secrets.DISCORD_WEBHOOK_PR_URL }}
-
-    - name: Send failure notification
-      if: failure()
-      run: |
-        curl -H "Content-Type: application/json" \
-              -X POST \
-              -d "{\"username\": \"AI CI\", \"content\": \"❌ [AI CI 실패] **${{ github.base_ref }}** 브랜치\\n🔖 Commit: ${{ github.sha }}\\n⚠️ 원인: 빌드 또는 테스트 실패\"}" \
-              ${{ secrets.DISCORD_WEBHOOK_PR_URL }}
-
   
     outputs:
       branch: ${{ steps.generate-tags.outputs.branch }}
@@ -186,6 +177,9 @@ jobs:
           }
 
           BRANCH="${{ github.ref_name }}"
+          SANITIZED_BRANCH="${BRANCH//\//-}"
+          SANITIZED_BRANCH=$(echo "$SANITIZED_BRANCH" | sed 's#[^a-zA-Z0-9_.-]#-#g')
+          BRANCH="$SANITIZED_BRANCH"   # 다시 덮어쓰기 (or IMAGE_TAG에 바로 SANITIZED_BRANCH 써도 됨)
           echo "BRANCH=$BRANCH" >> $GITHUB_ENV
           if [[ "$BRANCH" == "main" ]]; then
             echo "ENV=PROD" >> $GITHUB_ENV
