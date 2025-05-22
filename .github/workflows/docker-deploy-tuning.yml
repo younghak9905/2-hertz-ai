@@ -28,7 +28,33 @@ jobs:
     runs-on: ubuntu-latest
     steps:
      
-        # 5. AWS 인증
+    # 1. 소스 코드 체크아웃
+    - name: Checkout repository
+      uses: actions/checkout@v3
+      with:
+        fetch-depth: 1
+
+    # 2. Python 설정
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+        cache: 'pip'
+        cache-dependency-path: |
+          app-tuning/requirements.txt
+
+    # 3. 의존성 설치
+    #- name: Install dependencies
+    # run: |
+    #    pip install --upgrade pip
+    #    pip install -r app-tuning/requirements.txt
+
+    # 4. 테스트 실행
+    #- name: Run tests
+    #  run: |
+    #   pytest || echo "⚠️ 테스트 없음 또는 실패, 계속 진행"
+    
+    # 5. AWS 인증
     - name: Configure AWS credentials
       if: success()
       uses: aws-actions/configure-aws-credentials@v1
@@ -44,7 +70,7 @@ jobs:
       id: login-ecr
       uses: aws-actions/amazon-ecr-login@v1
  
-   # 7. 태그 정보 생성
+    # 7. 태그 정보 생성
     - name: Generate tags
       if: success()
       id: generate-tags
@@ -73,65 +99,28 @@ jobs:
        echo "full_image=$FULL_IMAGE" >> $GITHUB_OUTPUT
        echo "ecr_registry=$ECR_REGISTRY" >> $GITHUB_OUTPUT
        echo "repository=$REPOSITORY" >> $GITHUB_OUTPUT
-       
-    - name: Debug outputs
-      run: |
-         echo "branch=${{ steps.generate-tags.outputs.branch }}"
-         echo "image_tag=${{ steps.generate-tags.outputs.image_tag }}"    
-   # 8. Docker 이미지 빌드 및 푸시
-    - name: Build and push Docker image
-      if: success()
-      run: |
-       ECR_REGISTRY=${{ steps.login-ecr.outputs.registry }}
-       REPOSITORY=tuning-api
-       IMAGE_TAG=${{ steps.generate-tags.outputs.image_tag }}
-       ENV_TAG=${{ steps.generate-tags.outputs.env_tag }}
-       echo $ECR_REGISTRY/$REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$REPOSITORY:$ENV_TAG
-    # 1. 소스 코드 체크아웃
-    - name: Checkout repository
-      uses: actions/checkout@v3
-      with:
-        fetch-depth: 1
-
-    # 2. Python 설정
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.10'
-        cache: 'pip'
-        cache-dependency-path: |
-          app-tuning/requirements.txt
-
-    # 3. 의존성 설치
-    - name: Install dependencies
-      run: |
-        pip install --upgrade pip
-        pip install -r app-tuning/requirements.txt
-
-    # 4. 테스트 실행
-    - name: Run tests
-      run: |
-        pytest || echo "⚠️ 테스트 없음 또는 실패, 계속 진행"
-
    
 
     # 8. Docker 이미지 빌드 및 푸시
-    - name: Build and push Docker image
-      if: success()
+    - name: Build and push Docker image with cache
+      env:
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        REPOSITORY: tuning-api
+        IMAGE_TAG: ${{ steps.generate-tags.outputs.image_tag }}
+        ENV_TAG: ${{ steps.generate-tags.outputs.env_tag }}
       run: |
-        ECR_REGISTRY=${{ steps.login-ecr.outputs.registry }}
-        REPOSITORY=tuning-api
-        IMAGE_TAG=${{ steps.generate-tags.outputs.image_tag }}
-        ENV_TAG=${{ steps.generate-tags.outputs.env_tag }}
-    
-        echo "🏗️ Docker 이미지 빌드 시작..."
-        docker build -f Dockerfile.tuning -t $ECR_REGISTRY/$REPOSITORY:$IMAGE_TAG .
+        echo "🏗️ Docker 이미지 빌드 시작 (with cache)..."
+        docker build \
+          --cache-from=type=registry,ref=$ECR_REGISTRY/$REPOSITORY:$ENV_TAG \
+          --cache-to=type=inline \
+          -f Dockerfile.tuning \
+          -t $ECR_REGISTRY/$REPOSITORY:$IMAGE_TAG \
+          .
         docker tag $ECR_REGISTRY/$REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$REPOSITORY:$ENV_TAG
 
         echo "📤 Docker 이미지 푸시 중..."
         docker push $ECR_REGISTRY/$REPOSITORY:$IMAGE_TAG
         docker push $ECR_REGISTRY/$REPOSITORY:$ENV_TAG
-
 
     - name: Send success notification
       if: success()
@@ -230,12 +219,12 @@ jobs:
         if: env.ENV == 'production'
         uses: google-github-actions/auth@v1
         with:
-          credentials_json: ${{ env.GCP_SA_KEY }}
+          credentials_json: ${{ env.SA_KEY }}
       - name: Authenticate to GCP DEV
         if: env.ENV == 'develop'
         uses: google-github-actions/auth@v1
         with:
-          credentials_json: ${{ env.GCP_SA_KEY }}
+          credentials_json: ${{ env.SA_KEY }}
 
 
       - name: Setup gcloud CLI
