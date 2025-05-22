@@ -90,40 +90,16 @@ async def delete_user_data(user_data: EmbeddingRegister) -> Dict:
     """
     try:
         result = delete_user_metatdata(user_data)
-        return {"code": "USER_DELETE_SUCCESS", "data": result}
+        return result
     except HTTPException as http_ex:
-        logger.warning(f"[USER_DELETE_HTTP_ERROR] {http_ex.detail}")
+        logger.warning(f"[EMBEDDING_DELETE_HTTP_ERROR] {http_ex.detail}")
         raise
     except Exception as e:
-        logger.exception(f"[USER_DELETE_FATAL_ERROR]: {str(e)}")  # 자동 traceback 포함
+        logger.exception(f"[EMBEDDING_DELETE_FATAL_ERROR]: {str(e)}")  # 자동 traceback
         raise HTTPException(
             status_code=500,
             detail={
-                "code": "USER_DELETE_ERVER_ERROR",
+                "code": "EMBEDDING_DELETE_SERVER_ERROR",
                 "data": None,
             },
         )
-
-
-"""
-
-async def get_user_data(user_data: EmbeddingRegister) -> Dict:
-
-    try:
-        result = await get_user_metadata(user_data)
-        return {"code": "USER_METADATA_SUCCESS", "data": result}
-    except HTTPException as http_ex:
-        logger.warning(f"[USER_METADATA_HTTP_ERROR] {http_ex.detail}")
-        raise
-    except Exception as e:
-        logger.exception(
-            f"[USER_METADATA_FATAL_ERROR]: {str(e)}"
-        )  # 자동 traceback 포함
-        raise HTTPException(
-            status_code=500,
-            detail={
-                "code": "USER_METADATA_SERVER_ERROR",
-                "data": None,
-            },
-        )
-"""
