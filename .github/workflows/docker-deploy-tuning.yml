@@ -106,7 +106,7 @@ jobs:
     - name: Compute base image hash
       id: basehash
       run: |
-        HASH=$(cat Dockerfile.base ./app-tuning/requirements.txt | sha256sum | cut -c1-12)
+        HASH=$(cat Dockerfile.base-tuning ./app-tuning/requirements.txt | sha256sum | cut -c1-12)
         echo "BASE_HASH=$HASH" >> $GITHUB_ENV
         echo "base_hash=$HASH" >> $GITHUB_OUTPUT
     # 🏗️ BASE 이미지 빌드 + 푸시 (없을 때만)
