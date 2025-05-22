@@ -123,7 +123,7 @@ jobs:
       run: |
         ECR_REGISTRY=${{ steps.login-ecr.outputs.registry }}
         IMAGE_TAG=${{ steps.generate-tags.outputs.image_tag }}
-        ENV_TAG=${{ steps.generate-tags.outputs.env_tag }}"
+        ENV_TAG=${{ steps.generate-tags.outputs.env_tag }}
         docker build \
           -f Dockerfile.base-tuning \
           -t $ECR_REGISTRY/$BASE_IMAGE_NAME:${{ steps.basehash.outputs.base_hash }} \
