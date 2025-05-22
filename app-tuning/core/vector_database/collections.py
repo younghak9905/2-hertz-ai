@@ -1,5 +1,7 @@
 import logging
 
+from fastapi import HTTPException
+
 from .client import get_chroma_client
 
 _user_collection = None
@@ -35,10 +37,21 @@ def _get_or_create_collection(cache_key, collection_name):
 
     client = get_chroma_client()
     if client is None:
-        raise RuntimeError("ChromaDB 클라이언트를 사용할 수 없습니다.")
+        raise HTTPException(
+            status_code=503,
+            detail=f"{collection_name} 컬렉션을 사용할 수 없습니다",
+        )
 
     try:
-        collection = client.get_or_create_collection(collection_name)
+        # import os
+        # CREATE_IF_MISSING = os.getenv("CHROMA_MODE")
+
+        # if CREATE_IF_MISSING == "local":
+        #     collection = client.get_or_create_collection(collection_name)
+        # else:
+        if collection_name not in [c.name for c in client.list_collections()]:
+            raise RuntimeError(f"{collection_name} 컬렉션이 존재하지 않습니다.")
+        collection = client.get_collection(collection_name)
         _collection_cache[cache_key] = collection
         return collection
     except Exception as e:
@@ -62,7 +75,10 @@ def reset_collections():
     try:
         client = get_chroma_client()
         if client is None:
-            raise RuntimeError("ChromaDB 클라이언트를 사용할 수 없습니다.")
+            raise HTTPException(
+                status_code=503,
+                detail=" ChromaDB 연결 실패: 서비스가 일시적으로 사용할 수 없습니다.",
+            )
 
         # 삭제
         client.delete_collection(USER_COLLECTION_NAME)

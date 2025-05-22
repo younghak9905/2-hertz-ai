@@ -2,6 +2,7 @@ import logging
 import os
 
 import chromadb
+from fastapi import HTTPException
 
 chroma_client = None
 
@@ -25,9 +26,10 @@ def get_chroma_client():
         chroma_client = None  # 죽은 연결 무효화
 
     try:
-        mode = os.getenv("CHROMA_MODE", "local")
+        mode = os.getenv("CHROMA_MODE", "server")  # local 또는 server
 
         if mode == "local":
+            print("🔗 CHROMA MODE = local")
             chroma_path = os.getenv("CHROMA_PATH")
             if not chroma_path:
                 raise RuntimeError("CHROMA_PATH 환경변수가 설정되지 않았습니다.")
@@ -47,7 +49,11 @@ def get_chroma_client():
             raise RuntimeError("ChromaDB 클라이언트가 연결되었지만 응답이 없습니다.")
 
         return chroma_client
+
     except Exception as e:
         logging.exception(f"[Chroma] 클라이언트 초기화 실패: {e}")
         chroma_client = None
-        return None
+        raise HTTPException(
+            status_code=503,
+            detail="ChromaDB 연결 실패: 서비스가 일시적으로 사용할 수 없습니다.",
+        )
