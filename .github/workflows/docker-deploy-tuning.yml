@@ -52,12 +52,14 @@ jobs:
      
        BRANCH=${{ github.base_ref }}
        BRANCH=${{ github.ref_name }}
-       # 1. 슬래시를 우선 하이픈으로 변환 (bash substring replace)
+     
+       BRANCH="${{ github.ref_name }}"
        SANITIZED_BRANCH="${BRANCH//\//-}"
-       # 2. 기타 특수문자도 하이픈으로 치환
        SANITIZED_BRANCH=$(echo "$SANITIZED_BRANCH" | sed 's#[^a-zA-Z0-9_.-]#-#g')
+       BRANCH="$SANITIZED_BRANCH"   # 다시 덮어쓰기 (or IMAGE_TAG에 바로 SANITIZED_BRANCH 써도 됨)
        SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
-       IMAGE_TAG="${BRANCH}-${SHORT_SHA}"
+       IMAGE_TAG="${BRANCH}-${SHORT_SHA}"    # 공백 없이!
+       
        if [ "$BRANCH" = "main" ]; then
          ENV_TAG="main-latest"
        else
