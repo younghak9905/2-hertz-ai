@@ -210,17 +210,10 @@ jobs:
 
           load_param "/global/gcp/SSH_USERNAME" SSH_USERNAME
           load_secret_to_file "/global/gcp/SSH_PRIVATE_KEY" id_rsa
+
           chmod 600 id_rsa
           echo "SSH_KEY_PATH=id_rsa" >> $GITHUB_ENV
          
-
-      - name: Read GCP SA key JSON
-        id: read_sa_key
-        run: |
-          echo "SA_KEY<<EOF" >> $GITHUB_ENV
-          cat gcp-sa-key.json >> $GITHUB_ENV
-          echo "EOF" >> $GITHUB_ENV
-
       - name: Authenticate to GCP
         if: env.ENV == 'production'
         uses: google-github-actions/auth@v1
@@ -262,7 +255,7 @@ jobs:
             key: ${{ env.SSH_KEY_PATH }}
             port: 22
             script_stop: true
-            envs: ENV,AWS_REGION,AWS_ACCOUNT_ID
+            envs: ENV,FULL_IMAGE,IMAGE_TAG,AWS_REGION,AWS_ACCOUNT_ID  # 필요한 변수 모두 포함
             script: |
               echo "=== 환경변수 확인 ==="
               echo "ENV: $ENV"
