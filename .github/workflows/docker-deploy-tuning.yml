@@ -153,6 +153,45 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
+      - name: Set CI output variables
+        run: |
+            CI_FULL_IMAGE="${{ needs.ci.outputs.full_image }}"
+            CI_IMAGE_TAG="${{ needs.ci.outputs.image_tag }}"
+            
+            echo "=== CI 출력값 확인 ==="
+            echo "CI_FULL_IMAGE: '$CI_FULL_IMAGE'"
+            echo "CI_IMAGE_TAG: '$CI_IMAGE_TAG'"
+            echo "====================="
+            
+            # FULL_IMAGE가 비어있는 경우 재생성
+            if [ -z "$CI_FULL_IMAGE" ] || [ "$CI_FULL_IMAGE" = "null" ]; then
+              echo "⚠️ CI에서 FULL_IMAGE가 전달되지 않음. 재생성 중..."
+              
+              ECR_REGISTRY="${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com"
+              REPOSITORY="tuning-api"
+              
+              if [ -n "$CI_IMAGE_TAG" ] && [ "$CI_IMAGE_TAG" != "null" ]; then
+                FULL_IMAGE="$ECR_REGISTRY/$REPOSITORY:$CI_IMAGE_TAG"
+              else
+                # IMAGE_TAG도 없으면 현재 브랜치와 SHA로 재생성
+                BRANCH="${{ github.ref_name }}"
+                SANITIZED_BRANCH="${BRANCH//\//-}"
+                SANITIZED_BRANCH=$(echo "$SANITIZED_BRANCH" | sed 's#[^a-zA-Z0-9_.-]#-#g')
+                SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+                IMAGE_TAG="${SANITIZED_BRANCH}-${SHORT_SHA}"
+                FULL_IMAGE="$ECR_REGISTRY/$REPOSITORY:$IMAGE_TAG"
+                CI_IMAGE_TAG="$IMAGE_TAG"
+              fi
+              
+              echo "✅ 재생성된 FULL_IMAGE: $FULL_IMAGE"
+            else
+              FULL_IMAGE="$CI_FULL_IMAGE"
+            fi
+            
+            echo "FULL_IMAGE=$FULL_IMAGE" >> $GITHUB_ENV
+            echo "IMAGE_TAG=$CI_IMAGE_TAG" >> $GITHUB_ENV
+            
+
       - name: Set environment variables from SSM
         id: ssm
         run: |
@@ -173,13 +212,7 @@ jobs:
             echo "$VALUE" > "$2"
           }
 
-          echo "FULL_IMAGE=${{ needs.ci.outputs.full_image }}" >> $GITHUB_ENV
-          echo "IMAGE_TAG=${{ needs.ci.outputs.image_tag }}" >> $GITHUB_ENV
           BRANCH="${{ github.ref_name }}"
-          SANITIZED_BRANCH="${BRANCH//\//-}"
-          SANITIZED_BRANCH=$(echo "$SANITIZED_BRANCH" | sed 's#[^a-zA-Z0-9_.-]#-#g')
-          BRANCH="$SANITIZED_BRANCH"   # 다시 덮어쓰기 (or IMAGE_TAG에 바로 SANITIZED_BRANCH 써도 됨)
-          echo "BRANCH=$BRANCH" >> $GITHUB_ENV
           if [[ "$BRANCH" == "main" ]]; then
             echo "ENV=production" >> $GITHUB_ENV
             load_param "/global/gcp/PROD_GCP_HOST_AI" HOST
