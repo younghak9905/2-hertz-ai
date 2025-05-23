@@ -173,6 +173,8 @@ jobs:
             echo "$VALUE" > "$2"
           }
 
+          echo "FULL_IMAGE=${{ needs.ci.outputs.full_image }}" >> $GITHUB_ENV
+          echo "IMAGE_TAG=${{ needs.ci.outputs.image_tag }}" >> $GITHUB_ENV
           BRANCH="${{ github.ref_name }}"
           SANITIZED_BRANCH="${BRANCH//\//-}"
           SANITIZED_BRANCH=$(echo "$SANITIZED_BRANCH" | sed 's#[^a-zA-Z0-9_.-]#-#g')
@@ -219,17 +221,6 @@ jobs:
           cat gcp-sa-key.json >> $GITHUB_ENV
           echo "EOF" >> $GITHUB_ENV
 
-      - name: Set environment variables
-        id: set-env
-        run: |
-          # CI 작업에서 전달받은 값들
-          IMAGE_TAG="${{ needs.ci.outputs.image_tag }}"
-          SHORT_SHA="${{ needs.ci.outputs.short_sha }}"
-          FULL_IMAGE="${{ needs.ci.outputs.full_image }}"
-          echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_ENV
-          echo "FULL_IMAGE=$FULL_IMAGE" >> $GITHUB_ENV
-       
-
       - name: Authenticate to GCP
         if: env.ENV == 'production'
         uses: google-github-actions/auth@v1
@@ -271,7 +262,7 @@ jobs:
             key: ${{ env.SSH_KEY_PATH }}
             port: 22
             script_stop: true
-            envs: ENV,FULL_IMAGE,AWS_REGION,AWS_ACCOUNT_ID,IMAGE_TAG,BASE_IMAGE_NAME,PROD_IMAGE_NAME
+            envs: ENV,AWS_REGION,AWS_ACCOUNT_ID
             script: |
               echo "=== 환경변수 확인 ==="
               echo "ENV: $ENV"
