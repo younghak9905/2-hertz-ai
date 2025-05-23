@@ -155,7 +155,7 @@ jobs:
         # 6. ECR 로그인
       - name: Login to Amazon ECR
         if: success()
-        id: login-ecr
+        id: login-ecr-cd
         uses: aws-actions/amazon-ecr-login@v1
 
 
@@ -163,7 +163,7 @@ jobs:
         run: |
             CI_FULL_IMAGE="${{ needs.ci.outputs.full_image }}"
             CI_IMAGE_TAG="${{ needs.ci.outputs.image_tag }}"
-            ECR_REGISTRY=${{ steps.login-ecr.outputs.registry }}
+            ECR_REGISTRY=${{ steps.login-ecr-cd.outputs.registry }}
             FULL_IMAGE="$ECR_REGISTRY/tuning-api:$CI_IMAGE_TAG"
            
             echo "ECR_REGISTRY=$ECR_REGISTRY" >> $GITHUB_ENV
@@ -274,6 +274,7 @@ jobs:
               echo "IMAGE_TAG: $IMAGE_TAG"
               echo "FULL_IMAGE: $FULL_IMAGE"
               echo "AWS_REGION: $AWS_REGION"
+              echo "ECR_REGISTRY: $ECR_REGISTRY"
               echo "========================"
               # 배포 디렉토리로 이동
               cd /home/deploy
@@ -288,18 +289,28 @@ jobs:
               
               # AWS ECR 로그인 (ECR 사용하는 경우)
               
-              aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY
-            
+              # AWS ECR 로그인
+              echo "🔐 ECR 로그인 시도"
+              echo "ECR_REGISTRY: $ECR_REGISTRY"
+              
+              if aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY; then
+                echo "✅ ECR 로그인 성공"
+              else
+                echo "❌ ECR 로그인 실패"
+                exit 1
+              fi
               
               cd 2-hertz-ai
 
-              # 1단계: CI에서 빌드한 베이스 이미지를 ECR에서 pull
-              echo "📥 베이스 이미지 pull 중: $FULL_IMAGE"
-              docker pull "$FULL_IMAGE"
-
-
-              if [ $? -ne 0 ]; then
-                echo "❌ 베이스 이미지 pull 실패: $FULL_IMAGE"
+              # 베이스 이미지 pull
+              echo "📥 베이스 이미지 pull: $FULL_IMAGE"
+              if docker pull "$FULL_IMAGE"; then
+                echo "✅ 베이스 이미지 pull 성공"
+              else
+                echo "❌ 베이스 이미지 pull 실패"
+                # ECR 이미지 존재 여부 확인
+                echo "ECR 이미지 목록 확인:"
+                aws ecr describe-images --repository-name tuning-api --region $AWS_REGION || echo "이미지 목록 조회 실패"
                 exit 1
               fi
 
@@ -340,7 +351,13 @@ jobs:
               docker-compose -f docker-compose-tuning ps
               echo "📝 최근 로그 확인:"
               docker-compose -f docker-compose-tuning.yml logs --tail=10 tuning
-              
+              env:
+                ENV: ${{ env.ENV }}
+                FULL_IMAGE: ${{ env.FULL_IMAGE }}
+                IMAGE_TAG: ${{ env.IMAGE_TAG }}
+                AWS_REGION: ${{ secrets.AWS_REGION }}
+                ECR_REGISTRY: ${{ env.ECR_REGISTRY }}
+
       - name: Wait for FastAPI to start
         run: |
             echo "🕒 FastAPI 서버 기동 대기 중..."
