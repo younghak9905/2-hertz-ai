@@ -179,21 +179,21 @@ jobs:
           BRANCH="$SANITIZED_BRANCH"   # 다시 덮어쓰기 (or IMAGE_TAG에 바로 SANITIZED_BRANCH 써도 됨)
           echo "BRANCH=$BRANCH" >> $GITHUB_ENV
           if [[ "$BRANCH" == "main" ]]; then
-            echo "ENV=PROD" >> $GITHUB_ENV
+            echo "ENV=production" >> $GITHUB_ENV
             load_param "/global/gcp/PROD_GCP_HOST_AI" HOST
             load_param "/global/gcp/PROD_GCP_INSTANCE_AI" INSTANCE
             load_param "/global/gcp/PROD_GCP_PROJECT_ID" PROJECT_ID
             load_param "/global/gcp/PROD_GCP_ZONE" ZONE
             load_secret_to_file "/global/gcp/PROD_GCP_SA_KEY" gcp-sa-key.json
-          else if [[ "$BRANCH" == "develop" ]]; then
-            echo "ENV=DEV" >> $GITHUB_ENV
+          elif [[ "$BRANCH" == "develop" ]]; then
+            echo "ENV=develop" >> $GITHUB_ENV
             load_param "/global/gcp/DEV_GCP_HOST_AI" HOST
             load_param "/global/gcp/DEV_GCP_INSTANCE_AI" INSTANCE
             load_param "/global/gcp/DEV_GCP_PROJECT_ID" PROJECT_ID
             load_param "/global/gcp/DEV_GCP_ZONE" ZONE
             load_secret_to_file "/global/gcp/DEV_GCP_SA_KEY" gcp-sa-key.json
           else
-            echo "ENV=DEV" >> $GITHUB_ENV
+            echo "ENV=develop" >> $GITHUB_ENV
             load_param "/global/gcp/DEV_GCP_HOST_AI_TEST" HOST
             load_param "/global/gcp/DEV_GCP_INSTANCE_AI_TEST" INSTANCE
             load_param "/global/gcp/DEV_GCP_PROJECT_ID" PROJECT_ID
@@ -210,7 +210,7 @@ jobs:
           load_secret_to_file "/global/gcp/SSH_PRIVATE_KEY" id_rsa
           chmod 600 id_rsa
           echo "SSH_KEY_PATH=id_rsa" >> $GITHUB_ENV
-          echo "COMMIT_HASH=${{ github.sha }}" >> $GITHUB_ENV
+      
 
       - name: Read GCP SA key JSON
         id: read_sa_key
@@ -223,7 +223,6 @@ jobs:
         id: set-env
         run: |
           # CI 작업에서 전달받은 값들
-          BRANCH="${{ needs.ci.outputs.branch }}"
           IMAGE_TAG="${{ needs.ci.outputs.image_tag }}"
           SHORT_SHA="${{ needs.ci.outputs.short_sha }}"
       
