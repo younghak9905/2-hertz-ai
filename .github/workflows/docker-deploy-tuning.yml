@@ -316,7 +316,8 @@ jobs:
               docker build 
                 -f Dockerfile.prod-tuning \
                 -t ${{env.FULL_IMAGE}} \
-                --build-arg BASE_IMAGE=${{env.FULL_IMAGE}}
+                --build-arg BASE_IMAGE=${{env.FULL_IMAGE}} \
+                .
 
               # FastAPI 서비스만 재시작 (ChromaDB는 유지)
               docker-compose -f docker-compose-tuning.yml pull tuning  # API 이미지만 pull
