@@ -204,7 +204,7 @@ jobs:
           echo "SA_KEY<<EOF" >> $GITHUB_ENV
           cat gcp-sa-key.json >> $GITHUB_ENV
           echo "EOF" >> $GITHUB_ENV
-          load_param "/global/gcp/DEV_GCP_ZONE_TEST" ZONE
+          
 
           load_param "/global/gcp/SSH_USERNAME" SSH_USERNAME
           load_secret_to_file "/global/gcp/SSH_PRIVATE_KEY" id_rsa
@@ -246,23 +246,31 @@ jobs:
 
       - name: Boot target instance (start/resume with conditional wait)
         run: |
-          echo $ZONE
-          echo ${{ env.ZONE }}
-          echo "⚡ 인스턴스 상태 확인 중: $INSTANCE (zone: $ZONE)"
-          STATUS=$(gcloud compute instances describe "$INSTANCE" --zone="$ZONE" --format='get(status)')
-          echo "🔎 현재 상태: $STATUS"
+            if [[ -z "$ZONE" ]]; then
+                echo "❌ ZONE 환경변수가 설정되지 않았습니다."
+                exit 1
+            fi
+    
+            if [[ -z "$INSTANCE" ]]; then
+                echo "❌ INSTANCE 환경변수가 설정되지 않았습니다."
+                exit 1
+            fi
+    
+            STATUS=$(gcloud compute instances describe "$INSTANCE" --zone="$ZONE" --format='get(status)')
+            echo "🔎 현재 상태: $STATUS"
 
-          if [[ "$STATUS" == "SUSPENDED" ]]; then
-            echo "🔄 'resume' 명령 실행"
-            gcloud compute instances resume "$INSTANCE" --zone="$ZONE"
-            sleep 30
-          elif [[ "$STATUS" == "TERMINATED" ]]; then
-            echo "🔄 'start' 명령 실행"
-            gcloud compute instances start "$INSTANCE" --zone="$ZONE"
-            sleep 30
-          else
-            echo "✅ 이미 실행 중"
-          fi
+            if [[ "$STATUS" == "SUSPENDED" ]]; then
+                echo "🔄 'resume' 명령 실행"
+                gcloud compute instances resume "$INSTANCE" --zone="$ZONE"
+                sleep 30
+            elif [[ "$STATUS" == "TERMINATED" ]]; then
+                echo "🔄 'start' 명령 실행"
+                gcloud compute instances start "$INSTANCE" --zone="$ZONE"
+                sleep 30
+            else
+                echo "✅ 이미 실행 중"
+            fi
+       
 
       - name: Deploy to GCP
         uses: appleboy/ssh-action@v0.1.10
