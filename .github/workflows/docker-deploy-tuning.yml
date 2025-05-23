@@ -225,9 +225,7 @@ jobs:
           # CI 작업에서 전달받은 값들
           IMAGE_TAG="${{ needs.ci.outputs.image_tag }}"
           SHORT_SHA="${{ needs.ci.outputs.short_sha }}"
-      
-          echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_ENV
-          FULL_IMAGE=${{ needs.ci.outputs.full_image }}
+          FULL_IMAGE="${{ needs.ci.outputs.full_image }}"
 
       - name: Authenticate to GCP
         if: env.ENV == 'production'
@@ -328,7 +326,7 @@ jobs:
               docker-compose -f docker-compose-tuning ps
               echo "📝 최근 로그 확인:"
               docker-compose -f docker-compose-tuning.yml logs --tail=10 tuning
-              
+
       - name: Wait for FastAPI to start
         run: |
             echo "🕒 FastAPI 서버 기동 대기 중..."
