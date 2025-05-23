@@ -166,7 +166,7 @@ jobs:
             ECR_REGISTRY=${{ steps.login-ecr.outputs.registry }}
             FULL_IMAGE="$ECR_REGISTRY/tuning-api:$CI_IMAGE_TAG"
            
-            
+            echo "ECR_REGISTRY=$ECR_REGISTRY" >> $GITHUB_ENV
             echo "FULL_IMAGE=$FULL_IMAGE" >> $GITHUB_ENV
             echo "IMAGE_TAG=$CI_IMAGE_TAG" >> $GITHUB_ENV
             
@@ -267,7 +267,7 @@ jobs:
             key: ${{ env.SSH_KEY_PATH }}
             port: 22
             script_stop: true
-            envs: ENV,FULL_IMAGE,IMAGE_TAG,AWS_REGION,AWS_ACCOUNT_ID  # 필요한 변수 모두 포함
+            envs: ENV,FULL_IMAGE,IMAGE_TAG,AWS_REGION,ECR_REGISTRY  # 필요한 변수 모두 포함
             script: |
               echo "=== 환경변수 확인 ==="
               echo "ENV: $ENV"
@@ -287,9 +287,9 @@ jobs:
               fi             
               
               # AWS ECR 로그인 (ECR 사용하는 경우)
-              if [ -n "$AWS_REGION" ] && [ -n "$AWS_ACCOUNT_ID" ]; then
-                aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
-              fi
+              
+              aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY
+            
               
               cd 2-hertz-ai
 
