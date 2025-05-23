@@ -43,15 +43,7 @@ def _get_or_create_collection(cache_key, collection_name):
         )
 
     try:
-        # import os
-        # CREATE_IF_MISSING = os.getenv("CHROMA_MODE")
-
-        # if CREATE_IF_MISSING == "local":
-        #     collection = client.get_or_create_collection(collection_name)
-        # else:
-        if collection_name not in [c.name for c in client.list_collections()]:
-            raise RuntimeError(f"{collection_name} 컬렉션이 존재하지 않습니다.")
-        collection = client.get_collection(collection_name)
+        collection = client.get_or_create_collection(collection_name)
         _collection_cache[cache_key] = collection
         return collection
     except Exception as e:
