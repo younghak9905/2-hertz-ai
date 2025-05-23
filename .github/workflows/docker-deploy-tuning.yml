@@ -306,18 +306,35 @@ jobs:
               else
                 echo "ChromaDB는 이미 실행 중입니다."
               fi             
+              
               # AWS ECR 로그인 (ECR 사용하는 경우)
               if [ -n "$AWS_REGION" ] && [ -n "$AWS_ACCOUNT_ID" ]; then
                 aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
               fi
               
               cd 2-hertz-ai
-           
+
+              # 1단계: CI에서 빌드한 베이스 이미지를 ECR에서 pull
+              echo "📥 베이스 이미지 pull 중: $FULL_IMAGE"
+              docker pull "$FULL_IMAGE"
+
+
+              if [ $? -ne 0 ]; then
+                echo "❌ 베이스 이미지 pull 실패: $FULL_IMAGE"
+                exit 1
+              fi
+
+                # 2단계: 베이스 이미지를 사용해서 프로덕션 이미지 빌드
+            
+              PROD_FULL_IMAGE="tuning-api:${IMAGE_TAG}"
+
+
+
               # Docker 빌드
               echo "🏗️ Docker 이미지 빌드 시작: $FULL_IMAGE"
               docker build \
                 -f Dockerfile.prod-tuning \
-                -t "$FULL_IMAGE" \
+                -t "$PROD_FULL_IMAGE" \
                 --build-arg BASE_IMAGE_URI="$FULL_IMAGE" \
                 .
                
@@ -331,14 +348,12 @@ jobs:
               
                cat > .env << EOF
               # AWS 설정
-                FULL_IMAGE=${FULL_IMAGE}
+                FULL_IMAGE=${PROD_FULL_IMAGE}
                 EOF
 
-              # FastAPI 서비스만 재시작 (ChromaDB는 유지)
-              docker-compose -f docker-compose-tuning.yml pull tuning  # API 이미지만 pull
-              docker-compose -f docker-compose-tuning.yml stop tuning  # API 컨테이너만 중지
-              docker-compose -f docker-compose-tuning.yml rm -f tuning  # API 컨테이너만 제거
-              docker-compose -f docker-compose-tuning.yml up -d tuning  # API 컨테이너만 다시 시작
+              docker-compose -f docker-compose-tuning.yml stop tuning
+              docker-compose -f docker-compose-tuning.yml rm -f tuning
+              docker-compose -f docker-compose-tuning.yml up -d tuning
               
               sleep 5
             
