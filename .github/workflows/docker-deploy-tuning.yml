@@ -210,7 +210,7 @@ jobs:
           load_secret_to_file "/global/gcp/SSH_PRIVATE_KEY" id_rsa
           chmod 600 id_rsa
           echo "SSH_KEY_PATH=id_rsa" >> $GITHUB_ENV
-      
+          echo "ZONE=$ZONE"
 
       - name: Read GCP SA key JSON
         id: read_sa_key
@@ -246,6 +246,7 @@ jobs:
 
       - name: Boot target instance (start/resume with conditional wait)
         run: |
+    
           echo "⚡ 인스턴스 상태 확인 중: $INSTANCE (zone: $ZONE)"
           STATUS=$(gcloud compute instances describe "$INSTANCE" --zone="$ZONE" --format='get(status)')
           echo "🔎 현재 상태: $STATUS"
