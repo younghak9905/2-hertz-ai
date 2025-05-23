@@ -226,6 +226,9 @@ jobs:
           IMAGE_TAG="${{ needs.ci.outputs.image_tag }}"
           SHORT_SHA="${{ needs.ci.outputs.short_sha }}"
           FULL_IMAGE="${{ needs.ci.outputs.full_image }}"
+          echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_ENV
+          echo "FULL_IMAGE=$FULL_IMAGE" >> $GITHUB_ENV
+       
 
       - name: Authenticate to GCP
         if: env.ENV == 'production'
@@ -326,7 +329,7 @@ jobs:
               docker-compose -f docker-compose-tuning ps
               echo "📝 최근 로그 확인:"
               docker-compose -f docker-compose-tuning.yml logs --tail=10 tuning
-
+              
       - name: Wait for FastAPI to start
         run: |
             echo "🕒 FastAPI 서버 기동 대기 중..."
