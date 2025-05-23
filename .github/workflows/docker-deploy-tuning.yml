@@ -102,60 +102,26 @@ jobs:
        echo "ecr_registry=$ECR_REGISTRY" >> $GITHUB_OUTPUT
        echo "repository=$REPOSITORY" >> $GITHUB_OUTPUT
    
-    # 🧠 BASE 이미지 해시 생성
-    - name: Compute base image hash
-      id: basehash
+    # 8. Docker 이미지 빌드 및 푸시
+    - name: Build and push Docker image with cache
+      env:
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        REPOSITORY: tuning-api
+        IMAGE_TAG: ${{ steps.generate-tags.outputs.image_tag }}
+        ENV_TAG: ${{ steps.generate-tags.outputs.env_tag }}
       run: |
-        HASH=$(cat Dockerfile.base-tuning ./app-tuning/requirements.txt | sha256sum | cut -c1-12)
-        echo "BASE_HASH=$HASH" >> $GITHUB_ENV
-        echo "base_hash=$HASH" >> $GITHUB_OUTPUT
-    # 🏗️ BASE 이미지 빌드 + 푸시 (없을 때만)
-    # ✅ BASE 이미지 캐시 여부 확인
-    - name: Check if base image exists in ECR
-      id: base-exists
-      continue-on-error: true
-      run: |
-        ECR_REGISTRY=${{ steps.login-ecr.outputs.registry }}
-        docker pull $ECR_REGISTRY/$BASE_IMAGE_NAME:${{ steps.basehash.outputs.base_hash }}
-
-    - name: Build & Push Base Image (only if not exists)
-      if: steps.base-exists.outcome == 'failure'
-      run: |
-        ECR_REGISTRY=${{ steps.login-ecr.outputs.registry }}
-        IMAGE_TAG=${{ steps.generate-tags.outputs.image_tag }}
-        ENV_TAG=${{ steps.generate-tags.outputs.env_tag }}
+        echo "🏗️ Docker 이미지 빌드 시작 (with cache)..."
         docker build \
-          -f Dockerfile.base-tuning \
-          -t $ECR_REGISTRY/$BASE_IMAGE_NAME:${{ steps.basehash.outputs.base_hash }} \
-          -t $ECR_REGISTRY/$BASE_IMAGE_NAME:latest .
-        docker push $ECR_REGISTRY/$BASE_IMAGE_NAME:${{ steps.basehash.outputs.base_hash }}
-        docker push $ECR_REGISTRY/$BASE_IMAGE_NAME:latest
-    # ✅ PROD 이미지 빌드 + 캐시 사용 + 푸시
-    - name: Build & Push Prod Image (with base layer cache)
-      run: |
-        
-        ECR_REGISTRY=${{ steps.login-ecr.outputs.registry }} 
-        REPOSITORY=tuning-api
-        IMAGE_TAG=${{ steps.generate-tags.outputs.image_tag }}
-        ENV_TAG=${{ steps.generate-tags.outputs.env_tag }}
-        BASE_HASH=${{ steps.basehash.outputs.base_hash }}
-        BASE_URI=$ECR_REGISTRY/$BASE_IMAGE_NAME:$BASE_HASH
-        echo "🏗️ Docker prod 이미지 빌드 시작 (base: $BASE_URI)..."
-        docker build \
-          --build-arg BASE_IMAGE_URI=$BASE_URI \
-          --build-arg BASE_HASH=$BASE_HASH \
           --cache-from=type=registry,ref=$ECR_REGISTRY/$REPOSITORY:$ENV_TAG \
           --cache-to=type=inline \
-          -f Dockerfile.prod-tuning \
-          -t $ECR_REGISTRY/$REPOSITORY:$IMAGE_TAG .
-
+          -f Dockerfile.tuning \
+          -t $ECR_REGISTRY/$REPOSITORY:$IMAGE_TAG \
+          .
         docker tag $ECR_REGISTRY/$REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$REPOSITORY:$ENV_TAG
-
-        echo "📤 Docker prod 이미지 푸시 중..."
+        echo "📤 Docker 이미지 푸시 중..."
         docker push $ECR_REGISTRY/$REPOSITORY:$IMAGE_TAG
         docker push $ECR_REGISTRY/$REPOSITORY:$ENV_TAG
-
-
+    
     - name: Send success notification
       if: success()
       run: |
@@ -163,8 +129,10 @@ jobs:
               -X POST \
               -d "{\"username\": \"AI CI\", \"content\": \"✅ [AI CI 성공] **${{ steps.generate-tags.outputs.branch }}** 브랜치\\n🔖 태그: ${{ steps.generate-tags.outputs.image_tag }}\\n🆔 Commit: ${{ steps.generate-tags.outputs.short_sha }}\\n📦 이미지: ${{ steps.generate-tags.outputs.full_image }}\"}" \
               ${{ secrets.DISCORD_WEBHOOK_PR_URL }}
-  
+    
     outputs:
+    
+      
       branch: ${{ steps.generate-tags.outputs.branch }}
       image_tag: ${{ steps.generate-tags.outputs.image_tag }}
       env_tag: ${{ steps.generate-tags.outputs.env_tag }}
@@ -176,8 +144,14 @@ jobs:
   cd:
     needs: ci  # CI 작업이 성공한 후에 실행
     runs-on: ubuntu-latest
-    
+
     steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
 
       - name: Set environment variables from SSM
         id: ssm
@@ -211,12 +185,19 @@ jobs:
             load_param "/global/gcp/PROD_GCP_PROJECT_ID" PROJECT_ID
             load_param "/global/gcp/PROD_GCP_ZONE" ZONE
             load_secret_to_file "/global/gcp/PROD_GCP_SA_KEY" gcp-sa-key.json
-          else
+          else if [[ "$BRANCH" == "develop" ]]; then
             echo "ENV=DEV" >> $GITHUB_ENV
             load_param "/global/gcp/DEV_GCP_HOST_AI" HOST
             load_param "/global/gcp/DEV_GCP_INSTANCE_AI" INSTANCE
             load_param "/global/gcp/DEV_GCP_PROJECT_ID" PROJECT_ID
             load_param "/global/gcp/DEV_GCP_ZONE" ZONE
+            load_secret_to_file "/global/gcp/DEV_GCP_SA_KEY" gcp-sa-key.json
+          else
+            echo "ENV=DEV" >> $GITHUB_ENV
+            load_param "/global/gcp/DEV_GCP_HOST_AI_TEST" HOST
+            load_param "/global/gcp/DEV_GCP_INSTANCE_AI_TEST" INSTANCE
+            load_param "/global/gcp/DEV_GCP_PROJECT_ID" PROJECT_ID
+            load_param "/global/gcp/DEV_GCP_ZONE_TEST" ZONE
             load_secret_to_file "/global/gcp/DEV_GCP_SA_KEY" gcp-sa-key.json
           fi
 
@@ -282,4 +263,84 @@ jobs:
             echo "✅ 이미 실행 중"
           fi
 
-    
+      - name: Deploy to GCP
+        uses: appleboy/ssh-action@v0.1.10
+        with:
+            host: ${{ env.HOST }}
+            username: ${{ env.SSH_USERNAME }}
+            key: ${{ env.SSH_KEY_PATH }}
+            port: 22
+            script_stop: true
+            envs: |
+              ENV=${{ env.ENV }}
+              AWS_REGION=${{ secrets.AWS_REGION }}
+              AWS_ACCOUNT_ID=${{ secrets.AWS_ACCOUNT_ID }}
+            script: |
+              # 배포 디렉토리로 이동
+              cd /home/deploy
+              
+              # .env 파일 생성 (필요한 경우)
+              cat > .env << EOF
+              # AWS 설정
+              AWS_ACCOUNT_ID=$AWS_ACCOUNT_ID
+              AWS_REGION=$AWS_REGION
+              IMAGE_TAG=$IMAGE_TAG
+              EOF
+              
+              # AWS ECR 로그인 (ECR 사용하는 경우)
+              if [ -n "$AWS_REGION" ] && [ -n "$AWS_ACCOUNT_ID" ]; then
+                aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
+              fi
+              
+              cd 2-hertz-ai
+           
+              docker build 
+                -f Dockerfile.tuning \
+                -t ${{env.FULL_IMAGE}} \
+                --build-arg BASE_IMAGE=${{env.FULL_IMAGE}}
+
+              # FastAPI 서비스만 재시작 (ChromaDB는 유지)
+              docker-compose -f docker-compose-tuning.yml pull tuning  # API 이미지만 pull
+              docker-compose -f docker-compose-tuning.yml stop tuning  # API 컨테이너만 중지
+              docker-compose -f docker-compose-tuning.yml rm -f tuning  # API 컨테이너만 제거
+              docker-compose -f docker-compose-tuning.yml up -d tuning  # API 컨테이너만 다시 시작
+              
+      
+              # ChromaDB가 PM2에 의해 실행 중인지 확인
+              if ! pm2 status chromadb | grep -q "online"; then
+              echo "ChromaDB가 실행되지 않았습니다. PM2를 통해 시작 중..."
+              pm2 start ecosystem.config.js --only chromadb
+              else
+                echo "ChromaDB는 이미 실행 중입니다."
+              fi
+              
+              # 서비스 상태 확인
+              docker-compose ps
+
+      - name: Wait for FastAPI to start
+        run: |
+            echo "🕒 FastAPI 서버 기동 대기 중..."
+            sleep 15
+  
+      - name: Health check
+        run: |
+            echo "🔍 API 서비스 헬스체크 중..."
+            for i in {1..3}; do
+              if curl -sf http://${{ env.HOST }}:8000/api/v1/health; then
+                echo "✅ API 서비스가 정상적으로 시작되었습니다."
+                
+                # ChromaDB 연결 확인
+                echo "🔍 ChromaDB 연결 상태 확인 중..."
+                if curl -sf http://${{ env.HOST }}:8000/api/v1/health/chromadb; then
+                  echo "✅ ChromaDB가 정상적으로 작동 중입니다."
+                else
+                  echo "⚠️ 경고: ChromaDB 연결을 확인할 수 없습니다."
+                fi
+                exit 0
+              fi
+              echo "⏱️ API 서비스 준비 대기 중... ($i/3)"
+              sleep 5
+            done
+            
+            echo "::error::❌ 헬스체크 실패: API 서비스가 응답하지 않습니다."
+            exit 1
