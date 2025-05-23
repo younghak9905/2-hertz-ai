@@ -246,18 +246,19 @@ jobs:
 
       - name: Boot target instance (start/resume with conditional wait)
         run: |
-    
-          echo "⚡ 인스턴스 상태 확인 중: $INSTANCE (zone: ${{env.ZONE}})"
-          STATUS=$(gcloud compute instances describe "$INSTANCE" --zone="${{env.ZONE}}" --format='get(status)')
+          echo $ZONE
+          echo ${{ env.ZONE }}
+          echo "⚡ 인스턴스 상태 확인 중: $INSTANCE (zone: $ZONE)"
+          STATUS=$(gcloud compute instances describe "$INSTANCE" --zone="$ZONE" --format='get(status)')
           echo "🔎 현재 상태: $STATUS"
 
           if [[ "$STATUS" == "SUSPENDED" ]]; then
             echo "🔄 'resume' 명령 실행"
-            gcloud compute instances resume "$INSTANCE" --zone="${{env.ZONE}}"
+            gcloud compute instances resume "$INSTANCE" --zone="$ZONE"
             sleep 30
           elif [[ "$STATUS" == "TERMINATED" ]]; then
             echo "🔄 'start' 명령 실행"
-            gcloud compute instances start "$INSTANCE" --zone="${{env.ZONE}}"
+            gcloud compute instances start "$INSTANCE" --zone="$ZONE"
             sleep 30
           else
             echo "✅ 이미 실행 중"
