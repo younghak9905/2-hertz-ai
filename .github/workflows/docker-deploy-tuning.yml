@@ -123,7 +123,7 @@ jobs:
         docker push $ECR_REGISTRY/$REPOSITORY:$ENV_TAG
     
     - name: Send success notification
-      if: success()
+      if: failure()
       run: |
         curl -H "Content-Type: application/json" \
               -X POST \
@@ -204,7 +204,7 @@ jobs:
           echo "SA_KEY<<EOF" >> $GITHUB_ENV
           cat gcp-sa-key.json >> $GITHUB_ENV
           echo "EOF" >> $GITHUB_ENV
-          load_param "/global/gcp/DEV_GCP_ZONE" ZONE
+          load_param "/global/gcp/DEV_GCP_ZONE_TEST" ZONE
 
           load_param "/global/gcp/SSH_USERNAME" SSH_USERNAME
           load_secret_to_file "/global/gcp/SSH_PRIVATE_KEY" id_rsa
