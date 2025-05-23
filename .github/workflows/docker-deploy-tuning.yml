@@ -114,7 +114,7 @@ jobs:
         docker build \
           --cache-from=type=registry,ref=$ECR_REGISTRY/$REPOSITORY:$ENV_TAG \
           --cache-to=type=inline \
-          -f Dockerfile.tuning \
+          -f Dockerfile.base-tuning \
           -t $ECR_REGISTRY/$REPOSITORY:$IMAGE_TAG \
           .
         docker tag $ECR_REGISTRY/$REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$REPOSITORY:$ENV_TAG
@@ -305,7 +305,7 @@ jobs:
               cd 2-hertz-ai
            
               docker build 
-                -f Dockerfile.tuning \
+                -f Dockerfile.prod-tuning \
                 -t ${{env.FULL_IMAGE}} \
                 --build-arg BASE_IMAGE=${{env.FULL_IMAGE}}
 
