@@ -298,13 +298,7 @@ jobs:
 
 
 
-              # .env 파일 생성 (필요한 경우)
-              cat > .env << EOF
-              # AWS 설정
-              AWS_ACCOUNT_ID=$AWS_ACCOUNT_ID
-              AWS_REGION=$AWS_REGION
-              IMAGE_TAG=$IMAGE_TAG
-              EOF
+             
               
               # AWS ECR 로그인 (ECR 사용하는 경우)
               if [ -n "$AWS_REGION" ] && [ -n "$AWS_ACCOUNT_ID" ]; then
@@ -315,9 +309,17 @@ jobs:
            
               docker build 
                 -f Dockerfile.prod-tuning \
-                -t ${{env.FULL_IMAGE}} \
-                --build-arg BASE_IMAGE=${{env.FULL_IMAGE}} \
+                -t $FULL_IMAGE \
+                --build-arg BASE_IMAGE=$FULL_IMAGE \
                 .
+               
+               # .env 파일 생성 (필요한 경우)
+              
+               cat > .env << EOF
+              # AWS 설정
+                FULL_IMAGE=$FULL_IMAGE
+                
+              EOF
 
               # FastAPI 서비스만 재시작 (ChromaDB는 유지)
               docker-compose -f docker-compose-tuning.yml pull tuning  # API 이미지만 pull

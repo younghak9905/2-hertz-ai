@@ -3,9 +3,7 @@ version: "3.8"
 services:
   tuning:
     container_name: tuning
-    build:
-      context: .
-      dockerfile: Dockerfile.tuning # image: tuning-api:latest
+    image: ${FULL_IMAGE}
     restart: always
     ports:
       - "8000:8000"
