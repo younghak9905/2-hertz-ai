@@ -227,7 +227,7 @@ jobs:
           SHORT_SHA="${{ needs.ci.outputs.short_sha }}"
       
           echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_ENV
-          echo "FULL_IMAGE=${{ needs.ci.outputs.full_image }}" >> $GITHUB_ENV
+          FULL_IMAGE=${{ needs.ci.outputs.full_image }}
 
       - name: Authenticate to GCP
         if: env.ENV == 'production'
@@ -246,16 +246,6 @@ jobs:
 
       - name: Boot target instance (start/resume with conditional wait)
         run: |
-            if [[ -z "$ZONE" ]]; then
-                echo "❌ ZONE 환경변수가 설정되지 않았습니다."
-                exit 1
-            fi
-    
-            if [[ -z "$INSTANCE" ]]; then
-                echo "❌ INSTANCE 환경변수가 설정되지 않았습니다."
-                exit 1
-            fi
-    
             STATUS=$(gcloud compute instances describe "$INSTANCE" --zone="$ZONE" --format='get(status)')
             echo "🔎 현재 상태: $STATUS"
 
@@ -280,11 +270,14 @@ jobs:
             key: ${{ env.SSH_KEY_PATH }}
             port: 22
             script_stop: true
-            envs: |
-              ENV=${{ env.ENV }}
-              AWS_REGION=${{ secrets.AWS_REGION }}
-              AWS_ACCOUNT_ID=${{ secrets.AWS_ACCOUNT_ID }}
+            envs: ENV,FULL_IMAGE,AWS_REGION,AWS_ACCOUNT_ID,IMAGE_TAG,BASE_IMAGE_NAME,PROD_IMAGE_NAME
             script: |
+              echo "=== 환경변수 확인 ==="
+              echo "ENV: $ENV"
+              echo "IMAGE_TAG: $IMAGE_TAG"
+              echo "FULL_IMAGE: $FULL_IMAGE"
+              echo "AWS_REGION: $AWS_REGION"
+              echo "========================"
               # 배포 디렉토리로 이동
               cd /home/deploy
               
@@ -294,12 +287,7 @@ jobs:
               pm2 start ecosystem.config.js --only chromadb
               else
                 echo "ChromaDB는 이미 실행 중입니다."
-              fi
-
-
-
-             
-              
+              fi             
               # AWS ECR 로그인 (ECR 사용하는 경우)
               if [ -n "$AWS_REGION" ] && [ -n "$AWS_ACCOUNT_ID" ]; then
                 aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
@@ -307,19 +295,26 @@ jobs:
               
               cd 2-hertz-ai
            
-              docker build 
+              # Docker 빌드
+              echo "🏗️ Docker 이미지 빌드 시작: $FULL_IMAGE"
+              docker build \
                 -f Dockerfile.prod-tuning \
-                -t $FULL_IMAGE \
-                --build-arg BASE_IMAGE=$FULL_IMAGE \
+                -t "$FULL_IMAGE" \
+                --build-arg BASE_IMAGE_URI="$FULL_IMAGE" \
                 .
                
+                # 빌드 결과 확인
+              if [ $? -ne 0 ]; then
+                echo "❌ Docker 빌드가 실패했습니다."
+                exit 1
+              fi
+
                # .env 파일 생성 (필요한 경우)
               
                cat > .env << EOF
               # AWS 설정
-                FULL_IMAGE=$FULL_IMAGE
-                
-              EOF
+                FULL_IMAGE=${FULL_IMAGE}
+                EOF
 
               # FastAPI 서비스만 재시작 (ChromaDB는 유지)
               docker-compose -f docker-compose-tuning.yml pull tuning  # API 이미지만 pull
@@ -327,10 +322,13 @@ jobs:
               docker-compose -f docker-compose-tuning.yml rm -f tuning  # API 컨테이너만 제거
               docker-compose -f docker-compose-tuning.yml up -d tuning  # API 컨테이너만 다시 시작
               
+              sleep 5
             
               # 서비스 상태 확인
-              docker-compose ps
-
+              docker-compose -f docker-compose-tuning ps
+              echo "📝 최근 로그 확인:"
+              docker-compose -f docker-compose-tuning.yml logs --tail=10 tuning
+              
       - name: Wait for FastAPI to start
         run: |
             echo "🕒 FastAPI 서버 기동 대기 중..."
