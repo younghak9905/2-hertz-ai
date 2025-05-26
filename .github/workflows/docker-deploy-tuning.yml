@@ -4,9 +4,10 @@ on:
   push:
     branches:
       - feature/docker-deploy # feature/docker-deploy 브랜치에 Push 시 CI/CD 실행
-#  pull_request:
-#    types: [closed] # PR이 닫혔을 때 (병합 포함)
-#    branches:
+  pull_request:
+    types: [closed] # PR이 닫혔을 때 (병합 포함)
+    branches:
+      - feature/docker-deploy
 #      - main # main 브랜치로 Merge 시 -> Production 환경에 배포
 #      - develop # develop 브랜치로 Merge 시 -> DEV 환경에 배포
 
@@ -360,6 +361,7 @@ jobs:
                 echo "🔍 ChromaDB 연결 상태 확인 중..."
                 if curl -sf http://${{ env.HOST }}:8000/api/v1/health/chromadb; then
                   echo "✅ ChromaDB가 정상적으로 작동 중입니다."
+                  echo "$IMAGE_TAG" > last-successful-tag.txt
                 else
                   echo "⚠️ 경고: ChromaDB 연결을 확인할 수 없습니다."
                 fi
@@ -369,7 +371,23 @@ jobs:
               sleep 5
             done
             
-            echo "::error::❌ 헬스체크 실패: API 서비스가 응답하지 않습니다."
+            if [ "$ENV" = "production" ] || [ "$ENV" = "prod" ]; then
+                echo "🟠 [PRODUCTION] 환경이므로 헬스체크 실패 시 롤백 수행!"
+
+                #  헬스체크 실패 시 롤백 코드
+                PREV_IMAGE_TAG=$(cat last-successful-tag.txt)
+                PREV_IMAGE="${ECR_REGISTRY}/tuning-api:${PREV_IMAGE_TAG}"
+                if grep -q '^FULL_IMAGE=' .env; then
+                    sed -i "s|^FULL_IMAGE=.*|FULL_IMAGE=${PREV_IMAGE}|" .env
+                else
+                    echo "FULL_IMAGE=${PREV_IMAGE}" >> .env
+                fi
+                    docker-compose -f docker-compose-tuning.yml up -d tuning
+                echo "✅ 롤백 완료!"
+            else
+                echo "🟢 [DEVELOP/테스트] 환경이므로 롤백하지 않습니다."
+            fi
+            echo "::error::❌ API 서비스 헬스체크 실패 - 서버가 정상 기동되지 않음"
             exit 1
       - name: Send success notification
         if: success()
