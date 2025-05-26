@@ -1,11 +1,11 @@
 # .github/workflows/fastapi-ai-ci.yml
 name: AI CI/CD
 on:
-  pull_request:
-    types: [closed]
-    branches:
-      - main
-      - develop
+#  pull_request:
+#    types: [closed]
+#    branches:
+#      - main
+#    # - develop
   workflow_dispatch:
     inputs:
       environment:
