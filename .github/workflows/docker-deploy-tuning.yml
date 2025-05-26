@@ -265,7 +265,7 @@ jobs:
             host: ${{ env.HOST }}
             username: ${{ env.SSH_USERNAME }}
             key: ${{ secrets.SSH_PRIVATE_KEY }}
-            envs: ENV,FULL_IMAGE,IMAGE_TAG,AWS_REGION,ECR_REGISTRY  # 필요한 변수 모두 포함
+            envs: ENV,FULL_IMAGE,IMAGE_TAG,AWS_REGION,ECR_REGISTRY,AWS_ACCESS_KEY_ID,AWS_SECRET_ACCESS_KEY # 필요한 변수 모두 포함
             script: |
               echo "=== 환경변수 확인 ==="
               echo "ENV: $ENV"
@@ -275,6 +275,18 @@ jobs:
               echo "ECR_REGISTRY: $ECR_REGISTRY"
               echo "========================"
               cd /home/deploy
+              mkdir -p ~/.aws
+              cat > ~/.aws/credentials << EOF
+              [default]
+              aws_access_key_id=${AWS_ACCESS_KEY_ID}
+              aws_secret_access_key=${AWS_SECRET_ACCESS_KEY}
+              EOF
+
+              cat > ~/.aws/config << EOF
+              [default]
+              region=${AWS_REGION}
+              output=json
+              EOF
               # 볼륨에 sentence-transformers 패키지 자동 설치 (없을 때만)
               PYLIBS_DIR="/home/deploy/app-pylibs"
               if [ ! -d "$PYLIBS_DIR/sentence_transformers" ]; then
