@@ -293,11 +293,18 @@ jobs:
               echo "❌ ECR 로그인 실패"
               exit 1
             fi
-
+            
+            #Production 환경에서는CPU 제한 3.5로 설정
+            if [ "$ENV" = "production" ] || [ "$ENV" = "prod" ]; then
+              CPU_LIMIT=3.5
+            else
+              CPU_LIMIT=2.0
+            fi
 
             # .env 파일에 이미지 정보 세팅
             echo "# 이미지 설정" > .env
             echo "FULL_IMAGE=${FULL_IMAGE}" >> .env
+            echo "CPU_LIMIT=${CPU_LIMIT}" >> .env
 
             # 기존 컨테이너 중지/삭제 후 최신 이미지로 실행
 
@@ -343,7 +350,7 @@ jobs:
               if grep -q '^FULL_IMAGE=' .env; then
                 sed -i "s|^FULL_IMAGE=.*|FULL_IMAGE=${PREV_IMAGE}|" .env
               else
-                echo "FULL_IMAGE=${PREV_IMAGE}" > .env
+                echo "FULL_IMAGE=${PREV_IMAGE}" >> .env
               fi
               
               docker compose -f docker-compose-tuning.yml stop tuning
