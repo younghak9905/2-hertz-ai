@@ -300,8 +300,16 @@ jobs:
             echo "FULL_IMAGE=${FULL_IMAGE}" >> .env
 
             # 기존 컨테이너 중지/삭제 후 최신 이미지로 실행
-            docker-compose -f docker-compose-tuning.yml stop tuning
-            docker-compose -f docker-compose-tuning.yml rm -f tuning
+
+
+            if [ ! -d "/home/deploy/models/jhgan-ko-sbert-nli" ]; then
+              echo "모델 디렉토리가 없습니다. 모델을 먼저 다운로드합니다."
+              docker compose -f docker-compose-tuning run --rm tuning python scripts/download_model.py
+            else
+              echo "모델 디렉토리가 이미 존재합니다. 다운로드를 건너뜁니다."
+            fi            
+            docker compose -f docker-compose-tuning.yml stop tuning
+            docker compose -f docker-compose-tuning.yml rm -f tuning
             docker compose --env-file .env -f docker-compose-tuning.yml up -d tuning
 
             echo "🕒 FastAPI 서버 기동 대기 중..."
@@ -338,8 +346,8 @@ jobs:
                 echo "FULL_IMAGE=${PREV_IMAGE}" > .env
               fi
               
-              docker-compose -f docker-compose-tuning.yml stop tuning
-              docker-compose -f docker-compose-tuning.yml rm -f tuning
+              docker compose -f docker-compose-tuning.yml stop tuning
+              docker compose -f docker-compose-tuning.yml rm -f tuning
               docker compose --env-file .env -f docker-compose-tuning.yml up -d tuning
               echo "✅ 롤백 완료! (이전 이미지로 복구됨)"
             else
@@ -347,7 +355,7 @@ jobs:
             fi
 
             echo "📝 최근 로그 확인:"
-            docker-compose -f docker-compose-tuning.yml logs --tail=10 tuning
+            docker compose -f docker-compose-tuning.yml logs --tail=10 tuning
             #실패
             exit 1
 
