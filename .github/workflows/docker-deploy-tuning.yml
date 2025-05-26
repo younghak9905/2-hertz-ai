@@ -300,25 +300,14 @@ jobs:
             [ -f last-successful-tag.txt ] || touch last-successful-tag.txt
             echo "🔍 API 서비스 헬스체크 중..."
             for i in {1..3}; do
-              if curl -sf http://localhost:8000/api/v1/health; then
-                echo "✅ API 서비스가 정상적으로 시작되었습니다."
-                echo "$IMAGE_TAG" > last-successful-tag.txt
-                # ChromaDB 연결 확인(경고만)
-                echo "🔍 ChromaDB 연결 상태 확인 중..."
-                if curl -sf http://localhost:8000/api/v1/health/chromadb; then
-                  echo "✅ ChromaDB가 정상적으로 작동 중입니다."
-                else
-                  echo "⚠️ 경고: ChromaDB 연결을 확인할 수 없습니다."
-                fi
-                exit 0
-              fi
+              false
               echo "⏱️ API 서비스 준비 대기 중... ($i/3)"
               sleep 5
             done
 
             # [PRODUCTION] 환경에서만 롤백 수행
             
-            if [ "$ENV" = "production" ] || [ "$ENV" = "prod" ]; then
+            if true; then
               echo "🟠 [PRODUCTION] 환경이므로 헬스체크 실패 시 롤백 수행!"
               PREV_IMAGE_TAG=$(cat last-successful-tag.txt)
               PREV_IMAGE="${ECR_REGISTRY}/tuning-api:${PREV_IMAGE_TAG}"
@@ -342,7 +331,7 @@ jobs:
 
       # 8. 성공/실패 알림
       - name: Send success notification
-        if: failure()
+        if: success()
         run: |
           curl -H "Content-Type: application/json" \
             -X POST \
@@ -350,7 +339,7 @@ jobs:
             ${{ secrets.DISCORD_WEBHOOK_PR_URL }}
 
       - name: Send failure notification
-        if: failure()
+        if: success()
         run: |
           WORKFLOW_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           curl -H "Content-Type: application/json" \
