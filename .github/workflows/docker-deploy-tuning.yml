@@ -265,8 +265,6 @@ jobs:
             host: ${{ env.HOST }}
             username: ${{ env.SSH_USERNAME }}
             key: ${{ secrets.SSH_PRIVATE_KEY }}
-            port: 22
-            script_stop: true
             envs: ENV,FULL_IMAGE,IMAGE_TAG,AWS_REGION,ECR_REGISTRY  # 필요한 변수 모두 포함
             script: |
               echo "=== 환경변수 확인 ==="
@@ -276,8 +274,7 @@ jobs:
               echo "AWS_REGION: $AWS_REGION"
               echo "ECR_REGISTRY: $ECR_REGISTRY"
               echo "========================"
-              # 배포 디렉토리로 이동
-
+              cd /home/deploy
               # 볼륨에 sentence-transformers 패키지 자동 설치 (없을 때만)
               PYLIBS_DIR="/home/deploy/app-pylibs"
               if [ ! -d "$PYLIBS_DIR/sentence_transformers" ]; then
@@ -288,11 +285,6 @@ jobs:
               else
                 echo "✅ sentence-transformers 패키지가 이미 존재합니다."
               fi
-
-
-
-
-              cd /home/deploy
               
                # ChromaDB가 PM2에 의해 실행 중인지 확인
               if ! pm2 status chromadb | grep -q "online"; then
