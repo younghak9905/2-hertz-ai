@@ -296,6 +296,8 @@ jobs:
             sleep 15
 
             # ================== Health Check + 태그 기록 + 롤백 (Prod만) ==================
+             # 최초 롤백 대비: 파일이 없으면 빈 파일 생성(최초 배포, 또는 수동 복구 대비)
+            [ -f last-successful-tag.txt ] || touch last-successful-tag.txt
             echo "🔍 API 서비스 헬스체크 중..."
             for i in {1..3}; do
               if curl -sf http://localhost:8000/api/v1/health; then
