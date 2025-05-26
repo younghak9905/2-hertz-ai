@@ -264,7 +264,7 @@ jobs:
         with:
             host: ${{ env.HOST }}
             username: ${{ env.SSH_USERNAME }}
-            key: ${{ env.SSH_KEY_PATH }}
+            key: ${{ secrets.SSH_PRIVATE_KEY }}
             port: 22
             script_stop: true
             envs: ENV,FULL_IMAGE,IMAGE_TAG,AWS_REGION,ECR_REGISTRY  # 필요한 변수 모두 포함
@@ -307,6 +307,7 @@ jobs:
               # AWS ECR 로그인
               echo "🔐 ECR 로그인 시도"
               echo "ECR_REGISTRY: $ECR_REGISTRY"
+             
               
               if aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY; then
                 echo "✅ ECR 로그인 성공"
