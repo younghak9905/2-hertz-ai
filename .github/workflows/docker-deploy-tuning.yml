@@ -8,16 +8,18 @@ on:
     types: [closed]
     branches:
       - feature/docker-deploy
+    #  - develop
+    #  - main
   workflow_dispatch:
     inputs:
       env:
         description: "배포 환경 선택"
         required: true
-        default: "DEV"
+        default: "develop"
         type: choice
         options:
-          - DEV
-          - PROD
+          - develop
+          - main
 
 env:
   BASE_IMAGE_NAME: base
@@ -36,7 +38,7 @@ jobs:
 
       # 2. AWS 인증
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v1
+        uses: aws-actions/configure-aws-credentials@v2
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -295,6 +297,7 @@ jobs:
               exit 1
             fi
 
+
             # .env 파일에 이미지 정보 세팅
             echo "# 이미지 설정" > .env
             echo "FULL_IMAGE=${FULL_IMAGE}" >> .env
@@ -312,14 +315,23 @@ jobs:
             [ -f last-successful-tag.txt ] || touch last-successful-tag.txt
             echo "🔍 API 서비스 헬스체크 중..."
             for i in {1..3}; do
-              false
+             if curl -sf http://localhost:8000/api/v1/health; then
+                echo "✅ API 서비스가 정상적으로 시작되었습니다."
+                echo "$IMAGE_TAG" > last-successful-tag.txt
+                # ChromaDB 연결 확인(경고만)
+                echo "🔍 ChromaDB 연결 상태 확인 중..."
+                if curl -sf http://localhost:8000/api/v1/health/chromadb; then
+                  echo "✅ ChromaDB가 정상적으로 작동 중입니다."
+                else
+                  echo "⚠️ 경고: ChromaDB 연결을 확인할 수 없습니다."
+                fi
+                exit 0
+              fi
               echo "⏱️ API 서비스 준비 대기 중... ($i/3)"
               sleep 5
             done
 
-            # [PRODUCTION] 환경에서만 롤백 수행
-            
-            if true; then
+            if [ "$ENV" = "production" ] || [ "$ENV" = "prod" ]; then
               echo "🟠 [PRODUCTION] 환경이므로 헬스체크 실패 시 롤백 수행!"
               PREV_IMAGE_TAG=$(cat last-successful-tag.txt)
               PREV_IMAGE="${ECR_REGISTRY}/tuning-api:${PREV_IMAGE_TAG}"

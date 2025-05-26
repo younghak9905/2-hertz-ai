@@ -1,5 +1,3 @@
-version: "3.8"
-
 services:
   tuning:
     container_name: tuning
@@ -19,7 +17,6 @@ services:
     volumes:
       - /home/deploy/app-pylibs:/app/extlibs
       - tuning_logs:/app/logs
-      - ./app-tuning:/app
       - /home/deploy/models:/app/model-cache
     depends_on: []
     deploy:
@@ -40,6 +37,5 @@ services:
 networks:
   app-network:
     driver: bridge
-
 volumes:
   tuning_logs:
