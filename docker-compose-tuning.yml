@@ -1,0 +1,41 @@
+services:
+  tuning:
+    container_name: tuning
+    image: ${FULL_IMAGE} #${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/tuning-api:${IMAGE_TAG:-latest}
+    restart: always
+    ports:
+      - "8000:8000"
+    cap_add:
+      - SYS_PTRACE
+    environment:
+      - UVICORN_WORKERS=1 # - CHROMA_HOST=chromadb
+      - CHROMA_HOST=host.docker.internal # ⬅️ 로컬 PM2 서버로 접속
+      - CHROMA_PORT=8001
+      - CHROMA_MODE=server
+      - TOKENIZERS_PARALLELISM=false
+      - /home/deploy/app-pylibs:/app/extlibs
+    volumes:
+      - /home/deploy/app-pylibs:/app/extlibs
+      - tuning_logs:/app/logs
+      - /home/deploy/models:/app/model-cache
+    depends_on: []
+    deploy:
+      resources:
+        limits:
+          cpus: "3.0"
+          memory: "11G"
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8001/api/v1/health/chromadb" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    extra_hosts:
+      - "host.docker.internal:172.17.0.1" # ⬅️ Linux 호스트 연결을 위한 강제 호스트 설정 
+    networks:
+      - app-network
+networks:
+  app-network:
+    driver: bridge
+volumes:
+  tuning_logs:
