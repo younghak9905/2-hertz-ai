@@ -1,11 +1,15 @@
 name: AI Docker CI/CD
 
 on:
+  push:
+    branches:
+      - feature/docker-deploy # feature/docker-deploy 브랜치에 Push 시 CI/CD 실행
   pull_request:
     types: [closed]
     branches:
-      - develop
-      - main
+      - feature/docker-deploy
+    #  - develop
+    #  - main
   workflow_dispatch:
     inputs:
       env:
