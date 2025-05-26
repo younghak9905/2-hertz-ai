@@ -277,6 +277,21 @@ jobs:
               echo "ECR_REGISTRY: $ECR_REGISTRY"
               echo "========================"
               # 배포 디렉토리로 이동
+
+              # 볼륨에 sentence-transformers 패키지 자동 설치 (없을 때만)
+              PYLIBS_DIR="/home/deploy/app-pylibs"
+              if [ ! -d "$PYLIBS_DIR/sentence_transformers" ]; then
+                echo "📦 sentence-transformers 패키지가 없으므로 설치합니다..."
+                mkdir -p "$PYLIBS_DIR"
+                pip install --upgrade pip  # 최신화(옵션)
+                pip install --target="$PYLIBS_DIR" sentence-transformers==4.1.0
+              else
+                echo "✅ sentence-transformers 패키지가 이미 존재합니다."
+              fi
+
+
+
+
               cd /home/deploy
               
                # ChromaDB가 PM2에 의해 실행 중인지 확인
@@ -287,7 +302,44 @@ jobs:
                 echo "ChromaDB는 이미 실행 중입니다."
               fi             
               
-             
+              # AWS ECR 로그인 (ECR 사용하는 경우)
+              
+              # AWS ECR 로그인
+              echo "🔐 ECR 로그인 시도"
+              echo "ECR_REGISTRY: $ECR_REGISTRY"
+              
+              if aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY; then
+                echo "✅ ECR 로그인 성공"
+              else
+                echo "❌ ECR 로그인 실패"
+                exit 1
+              fi
+              
+              cd 2-hertz-ai
+
+               # .env 파일 생성 (필요한 경우)
+              
+               cat > .env << EOF
+              # AWS 설정
+                FULL_IMAGE=${FULL_IMAGE}
+                EOF
+
+              docker-compose -f docker-compose-tuning.yml stop tuning
+              docker-compose -f docker-compose-tuning.yml rm -f tuning
+              docker-compose -f docker-compose-tuning.yml up -d tuning
+              
+              sleep 5
+            
+              # 서비스 상태 확인
+              docker-compose -f docker-compose-tuning ps
+              echo "📝 최근 로그 확인:"
+              docker-compose -f docker-compose-tuning.yml logs --tail=10 tuning
+        env:
+          ENV: ${{ env.ENV }}₩₩
+          FULL_IMAGE: ${{ env.FULL_IMAGE }}
+          IMAGE_TAG: ${{ env.IMAGE_TAG }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+          ECR_REGISTRY: ${{ env.ECR_REGISTRY }}
 
       - name: Wait for FastAPI to start
         run: |

@@ -3,7 +3,7 @@ version: "3.8"
 services:
   tuning:
     container_name: tuning
-    image: ${FULL_IMAGE}
+    image: ${FULL_IMAGE} #${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/tuning-api:${IMAGE_TAG:-latest}
     restart: always
     ports:
       - "8000:8000"
@@ -15,7 +15,9 @@ services:
       - CHROMA_PORT=8001
       - CHROMA_MODE=server
       - TOKENIZERS_PARALLELISM=false
+      - /home/deploy/app-pylibs:/app/extlibs
     volumes:
+      - /home/deploy/app-pylibs:/app/extlibs
       - tuning_logs:/app/logs
       - ./app-tuning:/app
       - /home/deploy/models:/app/model-cache
