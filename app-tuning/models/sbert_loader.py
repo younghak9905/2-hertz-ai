@@ -5,6 +5,7 @@ SBERT 모델 로더 모듈
 """
 
 import os
+from pathlib import Path
 
 import torch
 from sentence_transformers import SentenceTransformer
@@ -79,7 +80,25 @@ def _load_model():
     torch.set_num_threads(max(1, os.cpu_count() // 2))  # 최소 1개는 사용하도록 보장
 
     # 모델 로드
-    loaded_model = SentenceTransformer("jhgan/ko-sbert-nli")
+
+    # 기존 코드
+    # loaded_model = SentenceTransformer("jhgan/ko-sbert-nli")
+
+    # 환경변수에서 모델 경로 가져오기
+    models_base_dir = Path(os.getenv("SENTENCE_TRANSFORMERS_HOME", "./model-cache"))
+    model_name = "jhgan/ko-sbert-nli"
+    model_dir_name = model_name.replace("/", "-")
+    model_path = models_base_dir / model_dir_name
+
+    # 모델 경로 존재 확인
+    if not model_path.exists():
+        raise FileNotFoundError(
+            f"모델 경로가 존재하지 않습니다: {model_path}\n"
+            f"모델을 다운로드하려면 'scripts/download_model.py'를 실행하세요."
+        )
+
+    # 로컬 경로에서 모델 로드
+    loaded_model = SentenceTransformer(str(model_path))
 
     # GPU가 있는 경우에만 GPU로 이동
     if torch.cuda.is_available():
