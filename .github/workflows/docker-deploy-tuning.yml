@@ -98,7 +98,7 @@ jobs:
 
       # 6. 성공/실패 알림
       - name: Send success notification
-        if: failure()
+        if: success()
         run: |
           curl -H "Content-Type: application/json" \
             -X POST \
@@ -221,14 +221,20 @@ jobs:
           else
             echo "✅ 이미 실행 중"
           fi
+      # 1. 소스 코드 체크아웃
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 1
+      
       - name: Copy docker-compose-tuning.yml to server
         uses: appleboy/scp-action@v0.1.4
         with:
           host: ${{ env.HOST }}
           username: ${{ env.SSH_USERNAME }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          source: "2-hertz-ai/docker-compose-tuning.yml"  # 🔹 루트 기준 상대경로
-          target: "/home/deploy/2-hertz-ai"
+          source: "docker-compose-tuning.yml"  # 🔹 루트 기준 상대경로
+          target: "/home/deploy"
 
       # 7. 실제 배포 + 헬스체크 + 롤백 (Prod만)
       - name: Deploy to GCP & Health check (with rollback)
@@ -289,8 +295,6 @@ jobs:
               exit 1
             fi
 
-            cd 2-hertz-ai
-
             # .env 파일에 이미지 정보 세팅
             echo "# 이미지 설정" > .env
             echo "FULL_IMAGE=${FULL_IMAGE}" >> .env
@@ -348,7 +352,7 @@ jobs:
             ${{ secrets.DISCORD_WEBHOOK_PR_URL }}
 
       - name: Send failure notification
-        if: success()
+        if: failure()
         run: |
           WORKFLOW_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           curl -H "Content-Type: application/json" \
