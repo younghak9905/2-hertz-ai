@@ -3,10 +3,14 @@ import os
 from sentence_transformers import SentenceTransformer
 
 MODEL_NAME = "jhgan/ko-sbert-nli"
-MODEL_CACHE = os.environ.get("SENTENCE_TRANSFORMERS_HOME", "./model-cache")
+BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+MODEL_CACHE = os.environ.get(
+    "SENTENCE_TRANSFORMERS_HOME", os.path.join(BASE_DIR, "model-cache")
+)
 MODEL_DIR_NAME = MODEL_NAME.replace("/", "-")
 MODEL_PATH = os.path.join(MODEL_CACHE, MODEL_DIR_NAME)
 
+print(MODEL_CACHE)
 os.makedirs(MODEL_CACHE, exist_ok=True)
 
 
