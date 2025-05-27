@@ -24,6 +24,9 @@ __pycache__/
 # JSON files
 *.json
 
+# mcp_config.json는 무시하지 않음
+!mcp_config.json
+
 # Distribution / packaging
 .Python
 build/
