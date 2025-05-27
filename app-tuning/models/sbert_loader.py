@@ -85,7 +85,15 @@ def _load_model():
     # loaded_model = SentenceTransformer("jhgan/ko-sbert-nli")
 
     # 환경변수에서 모델 경로 가져오기
-    models_base_dir = Path(os.getenv("SENTENCE_TRANSFORMERS_HOME", "./model-cache"))
+
+    BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+
+    # model-cache 경로를 루트 기준으로 설정
+    models_base_dir = Path(
+        os.environ.get(
+            "SENTENCE_TRANSFORMERS_HOME", os.path.join(BASE_DIR, "model-cache")
+        )
+    )
     model_name = "jhgan/ko-sbert-nli"
     model_dir_name = model_name.replace("/", "-")
     model_path = models_base_dir / model_dir_name
