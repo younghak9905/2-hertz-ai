@@ -1,10 +1,16 @@
 import json
 import logging
+import re
 
+from dotenv import load_dotenv
 from langchain_mcp_adapters.client import MultiServerMCPClient
 from langgraph.prebuilt import create_react_agent
-from models.qwen_loader_gcp_vllm import get_model
-from schemas.tuning_schema import TuningReport, TuningReportResponse
+from models import qwen_loader_gcp_ollama
+
+from ..core.prompt_templates.tuning_report_prompt import build_prompt
+from ..schemas.tuning_schema import TuningReport, TuningReportResponse
+
+load_dotenv()
 
 logger = logging.getLogger(__name__)
 
@@ -16,7 +22,7 @@ def load_mcp_config():
             return json.load(f)
     except Exception as e:
         print(f"설정 파일을 읽는 중 오류 발생: {str(e)}")
-        return None
+        return {}
 
 
 def create_server_config():
@@ -43,11 +49,59 @@ def create_server_config():
     return server_config
 
 
+def extract_json_from_content(content: str) -> dict:
+    """
+    content에서 JSON 구조 추출 (중첩된 JSON 문자열 처리)
+    """
+    try:
+        # 먼저 직접 JSON 파싱 시도
+        parsed = json.loads(content)
+
+        # 파싱된 결과가 title과 content를 가지고 있다면 반환
+        if isinstance(parsed, dict) and "title" in parsed and "content" in parsed:
+            return parsed
+
+    except (json.JSONDecodeError, TypeError):
+        pass
+
+    # 정규식으로 JSON 패턴 찾기
+    json_pattern = r'\{\s*"title"\s*:\s*"[^"]*"\s*,\s*"content"\s*:\s*"[^"]*"\s*\}'
+    match = re.search(json_pattern, content, re.DOTALL)
+
+    if match:
+        try:
+            return json.loads(match.group())
+        except json.JSONDecodeError:
+            pass
+
+    # 더 유연한 패턴으로 시도 (멀티라인 지원)
+    json_pattern_flexible = (
+        r'\{\s*"title"\s*:\s*"([^"]*?)"\s*,\s*"content"\s*:\s*"(.*?)"\s*\}'
+    )
+    match = re.search(json_pattern_flexible, content, re.DOTALL)
+
+    if match:
+        return {
+            "title": match.group(1),
+            "content": match.group(2).replace('\\"', '"').replace("\\n", "\n"),
+        }
+
+    # 모든 시도 실패 시 기본값 반환
+    return {
+        "title": "매칭 공지",
+        "content": content if content else "매칭 정보가 생성되었습니다.",
+    }
+
+
 async def generate_tuning_report(request: TuningReport) -> TuningReportResponse:
     server_config = create_server_config()
     client = MultiServerMCPClient(server_config)
-    tools = await client.get_tools()
-    agent = create_react_agent(get_model(), tools)
+    try:
+        tools = await client.get_tools()
+    except Exception as e:
+        logger.warning(f"MCP 도구 로드 실패, 기본 모델 사용: {e}")
+        tools = []
+    agent = create_react_agent(qwen_loader_gcp_ollama.get_model(), tools)
 
     try:
         # 프롬프트 생성
@@ -67,8 +121,30 @@ async def generate_tuning_report(request: TuningReport) -> TuningReportResponse:
             },
             {"role": "user", "content": prompt_text},
         ]
-        response = await agent.ainvoke({"messages": messages})
-        print("response: ", response)
+        model_response = await agent.ainvoke({"messages": messages})
+        print("response: ", model_response)
+
+        # LangChain 응답에서 content 추출
+        raw_content = ""
+        if "messages" in model_response and len(model_response["messages"]) > 0:
+            last_message = model_response["messages"][-1]
+            if hasattr(last_message, "content"):
+                raw_content = last_message.content
+
+        print("Extracted raw_content:", raw_content)
+
+        # 개선된 JSON 추출 함수 사용
+        parsed = extract_json_from_content(raw_content)
+        title = parsed.get("title", "매칭 공지")
+        content = parsed.get("content", "매칭 정보가 생성되었습니다.")
+
+        # 디버깅 출력
+        print(f"Final title: {title}")
+        print(f"Final content: {content}")
+
+        response = TuningReportResponse(
+            code="TUNING_REPORT_SUCCESS", data={"title": title, "content": content}
+        )
 
         return response
     except Exception as e:
