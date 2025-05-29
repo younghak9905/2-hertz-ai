@@ -75,21 +75,21 @@ async def create_user(user_data: EmbeddingRegister) -> Dict:
         )
 
 
-async def delete_user_data(user_data: EmbeddingRegister) -> Dict:
+async def delete_user_data(user_id: int) -> Dict:
     """
-    새 사용자를 등록하고 임베딩 벡터를 생성하는 컨트롤러 함수
+    사용자 데이터를 삭제하는 컨트롤러 함수
 
     Args:
-        user_data: 사용자 등록 데이터 (Pydantic 모델)
+        user_id (int): 삭제할 사용자의 ID
 
     Returns:
-        Dictionary containing the response code and result
+        dict: 응답 코드와 결과 데이터를 포함한 딕셔너리
 
     Raises:
-        HTTPException: 오류 발생 시 적절한 상태 코드와 메시지를 포함한 예외 발생
+        HTTPException: 사용자 데이터가 없거나 서버 오류가 발생한 경우
     """
     try:
-        result = delete_user_metatdata(user_data)
+        result = delete_user_metatdata(user_id)
         return result
     except HTTPException as http_ex:
         logger.warning(f"[EMBEDDING_DELETE_HTTP_ERROR] {http_ex.detail}")
