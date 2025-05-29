@@ -6,7 +6,7 @@
 import logging
 
 from fastapi import HTTPException
-from schemas.tuning_schema import TuningResponse
+from schemas.tuning_schema import TuningMatchingList, TuningResponse
 from services.tuning_service import get_matching_users
 
 logger = logging.getLogger(__name__)
@@ -38,12 +38,11 @@ async def get_tuning_matches(user_id: int) -> TuningResponse:
         print(f"Error in tuning controller: {str(e)}")
         raise HTTPException(
             status_code=500,
-            detail={"code": "TUNING_INTERNAL_SERVER_ERROR", "data": None},
+            detail=TuningResponse(
+                code="TUNING_INTERNAL_SERVER_ERROR", data=None
+            ).model_dump(),
         )
 
-    return {
-        "code": "TUNING_SUCCESS",
-        "data": {
-            "userIdList": result,
-        },
-    }
+    return TuningResponse(
+        code="TUNING_SUCCESS", data=TuningMatchingList(userIdList=result)
+    )
