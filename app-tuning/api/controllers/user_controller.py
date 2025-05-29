@@ -56,8 +56,8 @@ async def create_user(user_data: EmbeddingRegister) -> BaseResponse:
         HTTPException: 오류 발생 시 적절한 상태 코드와 메시지를 포함한 예외 발생
     """
     try:
-        result = await register_user(user_data)
-        return {"code": "EMBEDDING_REGISTER_SUCCESS", "data": result}
+        await register_user(user_data)
+        return BaseResponse(code="EMBEDDING_REGISTER_SUCCESS", data=None)
     except HTTPException as http_ex:
         logger.warning(f"[REGISTER_USER_HTTP_ERROR] {http_ex.detail}")
         raise
@@ -67,10 +67,9 @@ async def create_user(user_data: EmbeddingRegister) -> BaseResponse:
         )  # 자동 traceback 포함
         raise HTTPException(
             status_code=500,
-            detail={
-                "code": "EMBEDDING_REGISTER_SERVER_ERROR",
-                "data": None,
-            },
+            detail=BaseResponse(
+                code="EMBEDDING_REGISTER_SERVER_ERROR", data=None
+            ).model_dump(),
         )
 
 
@@ -88,17 +87,16 @@ async def delete_user_data(user_id: int) -> BaseResponse:
         HTTPException: 사용자 데이터가 없거나 서버 오류가 발생한 경우
     """
     try:
-        result = delete_user_metatdata(user_id)
-        return result
+        delete_user_metatdata(user_id)
+        return BaseResponse(code="EMBEDDING_DELETE_SUCCESS", data=None)
     except HTTPException as http_ex:
         logger.warning(f"[EMBEDDING_DELETE_HTTP_ERROR] {http_ex.detail}")
         raise
     except Exception as e:
-        logger.exception(f"[EMBEDDING_DELETE_FATAL_ERROR]: {str(e)}")  # 자동 traceback
+        logger.exception(f"[EMBEDDING_DELETE_FATAL_ERROR]: {str(e)}")
         raise HTTPException(
             status_code=500,
-            detail={
-                "code": "EMBEDDING_DELETE_SERVER_ERROR",
-                "data": None,
-            },
+            detail=BaseResponse(
+                code="EMBEDDING_DELETE_SERVER_ERROR", data=None
+            ).model_dump(),
         )
