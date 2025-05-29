@@ -4,7 +4,6 @@
 """
 
 import logging
-from typing import Dict
 
 from core.vector_database import list_similarities, list_users, reset_collections
 from fastapi import HTTPException
@@ -43,7 +42,7 @@ async def db_reset_data():
     return BaseResponse(status="success", code="CHROMADB_RESET_SUCCESS")
 
 
-async def create_user(user_data: EmbeddingRegister) -> Dict:
+async def create_user(user_data: EmbeddingRegister) -> BaseResponse:
     """
     새 사용자를 등록하고 임베딩 벡터를 생성하는 컨트롤러 함수
 
@@ -75,7 +74,7 @@ async def create_user(user_data: EmbeddingRegister) -> Dict:
         )
 
 
-async def delete_user_data(user_id: int) -> Dict:
+async def delete_user_data(user_id: int) -> BaseResponse:
     """
     사용자 데이터를 삭제하는 컨트롤러 함수
 
