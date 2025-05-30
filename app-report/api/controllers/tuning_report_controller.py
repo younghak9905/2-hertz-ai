@@ -1,8 +1,9 @@
 # 튜닝리포트(뉴스) 생성 컨트롤러
 
 from fastapi import HTTPException
-from schemas.tuning_schema import TuningReport
-from services.tuning_report_service import generate_tuning_report
+
+from ...schemas.tuning_schema import TuningReport
+from ...services.tuning_report_service_gcp_mcp import generate_tuning_report
 
 
 class TuningReportController:

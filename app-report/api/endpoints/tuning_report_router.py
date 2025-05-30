@@ -1,10 +1,8 @@
 # 튜닝리포트(뉴스) 생성 관련 엔드포인트
-from api.controllers.tuning_report_controller import TuningReportController
 from fastapi import APIRouter, Request
-from schemas.tuning_schema import TuningReport, TuningReportResponse
 
-# APIRouter 인스턴스 생성
-router = APIRouter()
+from ...schemas.tuning_schema import TuningReport, TuningReportResponse
+from ..controllers.tuning_report_controller import TuningReportController
 
 
 class TuningReportRouter:
