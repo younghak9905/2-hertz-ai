@@ -1,16 +1,14 @@
 import json
 import logging
+import os
 import re
 
-from dotenv import load_dotenv
 from langchain_mcp_adapters.client import MultiServerMCPClient
 from langgraph.prebuilt import create_react_agent
-from models import qwen_loader_gcp_ollama
 
 from ..core.prompt_templates.tuning_report_prompt import build_prompt
+from ..models import qwen_loader_gcp_ollama
 from ..schemas.tuning_schema import TuningReport, TuningReportResponse
-
-load_dotenv()
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +16,9 @@ logger = logging.getLogger(__name__)
 def load_mcp_config():
     """현재 디렉토리의 MCP 설정 파일을 로드합니다."""
     try:
-        with open("app-report/config/mcp_config.json", "r") as f:
+        parent_dir, _ = os.path.split(os.path.dirname(__file__))
+        config_path = os.path.join(parent_dir, "config", "mcp_config.json")
+        with open(config_path, "r") as f:
             return json.load(f)
     except Exception as e:
         print(f"설정 파일을 읽는 중 오류 발생: {str(e)}")
