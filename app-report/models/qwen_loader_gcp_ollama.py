@@ -7,7 +7,7 @@ def _load_model():
 
     load_dotenv()
 
-    loaded_model = ChatOllama(model="qwen2.5:3b")
+    loaded_model = ChatOllama(model="qwen2.5:7b")
 
     # 모델 예열 (첫 추론 시간 단축)
     # _ = loaded_model.invoke("모델 예열용 텍스트", max_token=50, temperature=0.91)
