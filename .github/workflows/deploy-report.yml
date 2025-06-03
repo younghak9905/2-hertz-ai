@@ -162,6 +162,54 @@ jobs:
     if: always() && needs.ai-cd.result != 'success'
     runs-on: ubuntu-latest
     steps:
+
+    # 1. AWS 인증 (ECR 및 SSM 접근)
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+      
+      - name: Set environment variables from SSM
+        id: ssm
+        run: |
+          load_param() {
+            VALUE=$(aws ssm get-parameter --name "$1" --with-decryption --query "Parameter.Value" --output text)
+            echo "::add-mask::$VALUE"
+            echo "$2=$VALUE" >> $GITHUB_ENV
+            echo "$2=$VALUE" >> $GITHUB_OUTPUT
+          }
+          load_secret_to_file() {
+            VALUE=$(aws ssm get-parameter --name "$1" --with-decryption --output json | jq -r .Parameter.Value)
+            echo "$VALUE" | while IFS= read -r line; do echo "::add-mask::$line"; done
+            echo "$VALUE" > "$2"
+          }
+          BRANCH="${{ github.ref_name }}"
+          echo "BRANCH=$BRANCH" >> $GITHUB_ENV
+          if [[ "$BRANCH" == "main" ]]; then
+            echo "ENV=production" >> $GITHUB_ENV
+          elif [[ "$BRANCH" == "develop" ]]; then
+            echo "ENV=develop" >> $GITHUB_ENV
+          else
+            echo "ENV=develop" >> $GITHUB_ENV
+          fi
+          load_secret_to_file "/global/gcp/DISCORD_WEBHOOK_CICD_URL" DISCORD_WEBHOOK_CICD_URL
+          load_param "/global/gcp/GPU_GCP_HOST" HOST
+          load_param "/global/gcp/GPU_GCP_INSTANCE" INSTANCE
+          load_param "/global/gcp/GPU_GCP_PROJECT_ID" PROJECT_ID
+          load_param "/global/gcp/GPU_GCP_ZONE" ZONE
+          load_secret_to_file "/global/gcp/GPU_GCP_SA_KEY" gcp-sa-key.json
+
+          echo "SA_KEY<<EOF" >> $GITHUB_ENV
+          cat gcp-sa-key.json >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+
+          load_param "/global/gcp/SSH_USERNAME" SSH_USERNAME
+          load_secret_to_file "/global/gcp/SSH_PRIVATE_KEY" id_rsa
+          chmod 600 id_rsa
+          echo "SSH_KEY_PATH=id_rsa" >> $GITHUB_ENV
+
       - name: Set environment variables
         run: |
           if [[ "${{ github.ref_name }}" == "main" ]]; then
@@ -169,8 +217,7 @@ jobs:
           else
             echo "ENVIRONMENT=develop" >> $GITHUB_ENV
           fi
-          echo "HOST=${{ needs.ai-cd.outputs.HOST }}" >> $GITHUB_ENV
-          echo "DISCORD_WEBHOOK_CICD_URL=${{ needs.ai-cd.outputs.DISCORD_WEBHOOK_CICD_URL }}" >> $GITHUB_ENV
+        
 
       - name: Authenticate to GCP
         uses: google-github-actions/auth@v1
