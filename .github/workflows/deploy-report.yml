@@ -5,8 +5,7 @@ on:
     types: [closed]
     branches:
       - feature/report_ci
-    #  - develop
-    #  - main
+      - develop
     paths:
       - 'app-report/**'
       - '.github/workflows/deploy-report.yml'
@@ -20,11 +19,19 @@ on:
         options:
           - develop
           - main
+
 jobs:
   ai-cd:
     runs-on: ubuntu-latest
+    outputs:
+      DISCORD_WEBHOOK_CICD_URL: ${{ steps.ssm.outputs.DISCORD_WEBHOOK_CICD_URL }}
+      HOST: ${{ steps.ssm.outputs.HOST }}
+      INSTANCE: ${{ steps.ssm.outputs.INSTANCE }}
+      PROJECT_ID: ${{ steps.ssm.outputs.PROJECT_ID }}
+      ZONE: ${{ steps.ssm.outputs.ZONE }}
+      SSH_USERNAME: ${{ steps.ssm.outputs.SSH_USERNAME }}
     steps:
-      
+
       # 1. AWS 인증 (ECR 및 SSM 접근)
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v2
@@ -40,6 +47,7 @@ jobs:
             VALUE=$(aws ssm get-parameter --name "$1" --with-decryption --query "Parameter.Value" --output text)
             echo "::add-mask::$VALUE"
             echo "$2=$VALUE" >> $GITHUB_ENV
+            echo "$2=$VALUE" >> $GITHUB_OUTPUT
           }
           load_secret_to_file() {
             VALUE=$(aws ssm get-parameter --name "$1" --with-decryption --output json | jq -r .Parameter.Value)
@@ -50,10 +58,8 @@ jobs:
           echo "BRANCH=$BRANCH" >> $GITHUB_ENV
           if [[ "$BRANCH" == "main" ]]; then
             echo "ENV=production" >> $GITHUB_ENV
-           
           elif [[ "$BRANCH" == "develop" ]]; then
             echo "ENV=develop" >> $GITHUB_ENV
-           
           else
             echo "ENV=develop" >> $GITHUB_ENV
           fi
@@ -72,8 +78,6 @@ jobs:
           load_secret_to_file "/global/gcp/SSH_PRIVATE_KEY" id_rsa
           chmod 600 id_rsa
           echo "SSH_KEY_PATH=id_rsa" >> $GITHUB_ENV
-   
-  
 
       - name: Authenticate to GCP
         uses: google-github-actions/auth@v1
@@ -83,15 +87,6 @@ jobs:
       - name: Setup gcloud CLI
         uses: google-github-actions/setup-gcloud@v1
 
-  outputs:
-    DISCORD_WEBHOOK_CICD_URL: ${{ steps.ssm.outputs.DISCORD_WEBHOOK_CICD_URL }}
-    HOST: ${{ steps.ssm.outputs.HOST }}
-    INSTANCE: ${{ steps.ssm.outputs.INSTANCE }}
-    PROJECT_ID: ${{ steps.ssm.outputs.PROJECT_ID }}
-    ZONE: ${{ steps.ssm.outputs.ZONE }}
-    SSH_USERNAME: ${{ steps.ssm.outputs.SSH_USERNAME }}
-      
-      
       - name: Boot target instance (start/resume with conditional wait)
         run: |
           echo "⚡ 인스턴스 상태 확인 중: $INSTANCE (zone: $ZONE)"
@@ -121,7 +116,7 @@ jobs:
           script: |
             cd /home/deploy
             chmod +x ai_deploy.sh
-            ./ai_deploy.sh
+            ./ai_deploy.sh --branch ${{ env.BRANCH }}
 
       - name: Wait for FastAPI to start
         run: |
@@ -162,7 +157,6 @@ jobs:
                -d "{\"content\": \"🚀 [AI 배포 완료] **${{ env.ENV }}** AI 서버 (브랜치: \`${{ env.BRANCH }}\`)\\n🔖 Commit: ${{ env.COMMIT_HASH }}\"}" \
                 ${{ env.DISCORD_WEBHOOK_CICD_URL }}
 
-  
   rollback:
     needs: ai-cd
     if: always() && needs.ai-cd.result != 'success'
@@ -175,7 +169,8 @@ jobs:
           else
             echo "ENVIRONMENT=develop" >> $GITHUB_ENV
           fi
-          echo "HOST=${{ needs.ai-cd.outputs.host }}" >> $GITHUB_ENV
+          echo "HOST=${{ needs.ai-cd.outputs.HOST }}" >> $GITHUB_ENV
+          echo "DISCORD_WEBHOOK_CICD_URL=${{ needs.ai-cd.outputs.DISCORD_WEBHOOK_CICD_URL }}" >> $GITHUB_ENV
 
       - name: Authenticate to GCP
         uses: google-github-actions/auth@v1
@@ -187,13 +182,13 @@ jobs:
           curl -H "Content-Type: application/json" \
             -X POST \
             -d "{\"content\": \"🔄 [AI 롤백 시작] \`${{ env.ENVIRONMENT }}\` 환경에서 롤백을 실행합니다.\"}" \
-            ${{ env.DISCORD_WEBHOOK_PR_URL }}
+            ${{ env.DISCORD_WEBHOOK_CICD_URL }}
 
       - name: SSH into server and rollback
         uses: appleboy/ssh-action@master
         with:
           host: ${{ env.HOST }}
-          username: ${{ secrets.SSH_USERNAME }}
+          username: ${{ needs.ai-cd.outputs.SSH_USERNAME }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             cd /home/deploy
@@ -222,7 +217,7 @@ jobs:
           curl -H "Content-Type: application/json" \
             -X POST \
             -d "{\"content\": \"✅ [AI 롤백 완료] \`${{ env.ENVIRONMENT }}\` 환경\"}" \
-            ${{ secrets.DISCORD_WEBHOOK_CICD_URL }}
+            ${{ env.DISCORD_WEBHOOK_CICD_URL }}
 
       - name: Send failure notification
         if: failure()
@@ -230,4 +225,4 @@ jobs:
           curl -H "Content-Type: application/json" \
             -X POST \
             -d "{\"content\": \"❌ [AI 롤백 실패] \`${{ env.ENVIRONMENT }}\` 환경\"}" \
-            ${{ secrets.DISCORD_WEBHOOK_CICD_URL }}
+            ${{ env.DISCORD_WEBHOOK_CICD_URL }}
