@@ -63,11 +63,11 @@ jobs:
             echo "ENV=develop" >> $GITHUB_ENV
           fi
           load_param "/global/gcp/DISCORD_WEBHOOK_CICD_URL" DISCORD_WEBHOOK_CICD_URL
-          load_param "/global/gcp/GPU_GCP_HOST" HOST
-          load_param "/global/gcp/GPU_GCP_INSTANCE" INSTANCE
-          load_param "/global/gcp/GPU_GCP_PROJECT_ID" PROJECT_ID
-          load_param "/global/gcp/GPU_GCP_ZONE" ZONE
-          load_secret_to_file "/global/gcp/GPU_GCP_SA_KEY" gcp-sa-key.json
+          load_param "/global/gcp/GPU_HOST" HOST
+          load_param "/global/gcp/GPU_INSTANCE" INSTANCE
+          load_param "/global/gcp/GPU_PROJECT_ID" PROJECT_ID
+          load_param "/global/gcp/GPU_ZONE" ZONE
+          load_secret_to_file "/global/gcp/GPU_SA_KEY" gcp-sa-key.json
 
           echo "SA_KEY<<EOF" >> $GITHUB_ENV
           cat gcp-sa-key.json >> $GITHUB_ENV
@@ -193,12 +193,12 @@ jobs:
           else
             echo "ENV=develop" >> $GITHUB_ENV
           fi
-          load_secret_to_file "/global/gcp/DISCORD_WEBHOOK_CICD_URL" DISCORD_WEBHOOK_CICD_URL
-          load_param "/global/gcp/GPU_GCP_HOST" HOST
-          load_param "/global/gcp/GPU_GCP_INSTANCE" INSTANCE
-          load_param "/global/gcp/GPU_GCP_PROJECT_ID" PROJECT_ID
-          load_param "/global/gcp/GPU_GCP_ZONE" ZONE
-          load_secret_to_file "/global/gcp/GPU_GCP_SA_KEY" gcp-sa-key.json
+          load_param "/global/gcp/DISCORD_WEBHOOK_CICD_URL" DISCORD_WEBHOOK_CICD_URL
+          load_param "/global/gcp/GPU_HOST" HOST
+          load_param "/global/gcp/GPU_INSTANCE" INSTANCE
+          load_param "/global/gcp/GPU_PROJECT_ID" PROJECT_ID
+          load_param "/global/gcp/GPU_ZONE" ZONE
+          load_secret_to_file "/global/gcp/GPU_SA_KEY" gcp-sa-key.json
 
           echo "SA_KEY<<EOF" >> $GITHUB_ENV
           cat gcp-sa-key.json >> $GITHUB_ENV
