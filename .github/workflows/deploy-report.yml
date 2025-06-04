@@ -87,20 +87,22 @@ jobs:
       - name: Setup gcloud CLI
         uses: google-github-actions/setup-gcloud@v1
 
-      - name: Proceed only if instance is running
+      - name: Check instance status
+        id: check_instance
         run: |
           echo "⚡ 인스턴스 상태 확인 중: $INSTANCE (zone: $ZONE)"
           STATUS=$(gcloud compute instances describe "$INSTANCE" --zone="$ZONE" --format='get(status)')
           echo "🔎 현재 상태: $STATUS"
-      
-          if [[ "$STATUS" != "RUNNING" ]]; then
-            echo "🛑 인스턴스가 실행 중이 아닙니다. CD를 종료합니다."
-            exit 0  # 정상 종료 (workflow 실패 아님)
+
+          if [[ "$STATUS" == "RUNNING" ]]; then
+            echo "continue=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "🛑 인스턴스가 실행 중이 아닙니다. CD 중단."
+            echo "continue=false" >> "$GITHUB_OUTPUT"
           fi
-      
-          echo "✅ 인스턴스가 실행 중입니다. CD를 계속 진행합니다."
 
       - name: Deploy via SSH
+        if: steps.check_instance.outputs.continue == 'true'
         uses: appleboy/ssh-action@master
         with:
           host: ${{ env.HOST }}
@@ -112,11 +114,13 @@ jobs:
             ./ai_deploy.sh --branch ${{ env.BRANCH }}
 
       - name: Wait for FastAPI to start
+        if: steps.check_instance.outputs.continue == 'true'
         run: |
           echo "🕒 FastAPI 서버 기동 대기 중..."
           sleep 15
 
       - name: Health check with retries
+        if: steps.check_instance.outputs.continue == 'true'
         run: |
           echo "🔍 AI 서버 헬스체크 시작 (FastAPI docs)... 최대 3회 시도합니다."
           for i in {1..3}; do
