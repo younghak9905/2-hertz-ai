@@ -56,6 +56,8 @@ async def generate_tuning_report(request: TuningReport) -> TuningReportResponse:
     except Exception as e:
         logger.warning(f"MCP 도구 로드 실패, 기본 모델 사용: {e}")
         tools = []
+    tools = []
+    print("MCP 툴 개수: ", len(tools)) # 테스트 디버깅용
     agent = create_react_agent(qwen_loader_gcp_ollama.get_model(), tools)
 
     try:
@@ -77,11 +79,11 @@ async def generate_tuning_report(request: TuningReport) -> TuningReportResponse:
             {"role": "user", "content": prompt_text},
         ]
         model_response = await agent.ainvoke({"messages": messages})
-        print("response: ", model_response)
+        ai_message = model_response["messages"][-1]
+        ai_message_content = json.loads(ai_message.content)
 
-        model_content = json.loads(model_response.content)
-        title = model_content.get("title", "")
-        content = model_content.get("content", "")
+        title = ai_message_content.get("title", "")
+        content = ai_message_content.get("content", "")
 
         # 디버깅 출력
         print(f"Final title: {title}")
