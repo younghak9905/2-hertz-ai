@@ -8,6 +8,7 @@ from langgraph.prebuilt import create_react_agent
 from ..core.prompt_templates.tuning_report_prompt import build_prompt
 from ..models import qwen_loader_gcp_ollama
 from ..schemas.tuning_schema import TuningReport, TuningReportResponse
+from ..utils.logger import log_performance
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +49,9 @@ def create_server_config():
     return server_config
 
 
+@log_performance(
+    operation_name="generate_tuning_report", include_memory=True, include_args=True
+)
 async def generate_tuning_report(request: TuningReport) -> TuningReportResponse:
     server_config = create_server_config()
     client = MultiServerMCPClient(server_config)
@@ -57,13 +61,16 @@ async def generate_tuning_report(request: TuningReport) -> TuningReportResponse:
         logger.warning(f"MCP 도구 로드 실패, 기본 모델 사용: {e}")
         tools = []
     tools = []
-    print("MCP 툴 개수: ", len(tools)) # 테스트 디버깅용
+    print("MCP 툴 개수: ", len(tools))  # 테스트 디버깅용
     agent = create_react_agent(qwen_loader_gcp_ollama.get_model(), tools)
 
     try:
         # 프롬프트 생성
         prompt_text = build_prompt(
-            category=request.category, userA=request.userA, userB=request.userB
+            category=request.category,
+            chatCount=request.chatCount,
+            userA=request.userA,
+            userB=request.userB,
         )
 
         messages = [
