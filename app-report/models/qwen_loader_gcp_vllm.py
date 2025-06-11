@@ -1,23 +1,18 @@
-import subprocess
 import time
+import GPUtil
 
-from dotenv import load_dotenv
-from langchain_community.llms import VLLM
+# from dotenv import load_dotenv
+# from langchain_community.llms import VLLM
+from langchain_openai import ChatOpenAI
 
 from ..utils.logger import log_performance, logger
 
 
-def get_gpu_memory_usage(device_index=0) -> float:
-    try:
-        result = subprocess.check_output(
-            ["nvidia-smi", "--query-gpu=memory.used", "--format=csv,nounits,noheader"]
-        )
-        mems = result.decode().strip().split("\n")
-        return float(mems[device_index])
-    except Exception as e:
-        logger.warning(f"nvidia-smi 실행 실패: {e}")
-        return -1.0
-
+def get_vram_usage():
+    gpus = GPUtil.getGPUs()
+    if gpus:
+        return gpus[0].memoryUsed  # MB 단위
+    return 0
 
 # 모듈 임포트 시점에 바로 모델 초기화
 @log_performance(operation_name="load_vllm_model", include_memory=True)
@@ -25,25 +20,24 @@ def _load_model():
     """
     VLLM Qwen2-7B-Instruct 모델을 로딩합니다.
     """
-    load_dotenv()
+
     try:
         logger.info(" VLLM[Qwen2-7B-Instruct] 모델 로딩 시작...")
 
         start_time = time.time()
-        gpu_mem_before = get_gpu_memory_usage()
+        gpu_mem_before = get_vram_usage()
         # 모델 로드
-        loaded_model = VLLM(
-            model="Qwen/Qwen2-7B-Instruct",
-            trust_remote_code=True,
-            gpu_memory_utilization=0.9,
-            max_model_len=8000,
-            dtype="half",
+        inference_server_url = "http://localhost:8001/v1"
+        loaded_model = ChatOpenAI(
+            model="Qwen/Qwen2.5-7B-Instruct-AWQ",
+            openai_api_key="EMPTY",
+            openai_api_base=inference_server_url,
         )
         # 모델 예열 (첫 추론 시간 단축)
         # _ = loaded_model.invoke("모델 예열용 텍스트", max_token=50, temperature=0.91)
 
         elapsed = round(time.time() - start_time, 2)
-        gpu_mem_after = get_gpu_memory_usage()
+        gpu_mem_after = get_vram_usage()
         gpu_diff = gpu_mem_after - gpu_mem_before
 
         logger.info(
