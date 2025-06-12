@@ -118,13 +118,13 @@ jobs:
         if: steps.check_instance.outputs.continue == 'true'
         run: |
           echo "🕒 FastAPI 서버 기동 대기 중..."
-          sleep 20
+          sleep 60
 
       - name: Health check with retries
         if: steps.check_instance.outputs.continue == 'true'
         run: |
           echo "🔍 AI 서버 헬스체크 시작 (FastAPI docs)... 최대 3회 시도합니다."
-          for i in {1..5}; do
+          for i in {1..10}; do
             echo "⏱️ 시도 $i: http://${{ env.HOST }}:8000/docs"
             if curl -sf http://${{ env.HOST }}:8000/docs; then
               echo "✅ 헬스체크 성공 🎉"
@@ -238,11 +238,16 @@ jobs:
           script: |
             cd /home/deploy
             ./ai_deploy.sh --rollback || exit 1
+      
+      - name: Wait for FastAPI to start
+        run: |
+              echo "🕒 FastAPI 서버 기동 대기 중..."
+              sleep 60
 
       - name: Health check with retries
         run: |
           echo "🔍 AI 서버 헬스체크 시작 ... 최대 3회 시도합니다."
-          for i in {1..5}; do
+          for i in {1..10}; do
             echo "⏱️ 시도 $i: http://${{ env.HOST }}:8000/api/v1/health/chromadb"
             if curl -sf http://${{ env.HOST }}:8000/api/v1/health/chromadb; then
               echo "✅ 헬스체크 성공 🎉"
