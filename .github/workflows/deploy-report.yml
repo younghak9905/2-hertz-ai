@@ -261,7 +261,7 @@ jobs:
               echo "🕒 FastAPI 서버 기동 대기 중..."
               sleep 60
 
-      - name: Health check with retries
+      - name: Health check with retries vllm
         run: |
           echo "🔍 AI 서버 헬스체크 시작 ... 최대 3회 시도합니다."
           for i in {1..5}; do
