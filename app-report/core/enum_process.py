@@ -11,6 +11,25 @@ ENUM_MAPPINGS = {
         "AGE_50S": "50대",
         "AGE_60_PLUS": "60대 이상",
     },
+    "MBTI": {
+        "ISTJ": "ISTJ",
+        "ISFJ": "ISFJ",
+        "INFJ": "INFJ",
+        "INTJ": "INTJ",
+        "ISTP": "ISTP",
+        "ISFP": "ISFP",
+        "INFP": "INFP",
+        "INTP": "INTP",
+        "ESTP": "ESTP",
+        "ESFP": "ESFP",
+        "ENFP": "ENFP",
+        "ENTP": "ENTP",
+        "ESTJ": "ESTJ",
+        "ESFJ": "ESFJ",
+        "ENFJ": "ENFJ",
+        "ENTJ": "ENTJ",
+        "UNKNOWN": "모름",
+    },
     "gender": {"MALE": "남자", "FEMALE": "여자"},
     "religion": {
         "NON_RELIGIOUS": "무교",
@@ -260,7 +279,7 @@ def convert_to_korean(data: Dict[str, Any]) -> Dict[str, Any]:
     converted = data.copy()
 
     # 단일 값 필드 변환
-    for field in ["gender", "ageGroup", "religion", "smoking", "drinking"]:
+    for field in ["MBTI", "gender", "ageGroup", "religion", "smoking", "drinking"]:
         if field in converted and converted[field] in ENUM_MAPPINGS[field]:
             converted[field] = ENUM_MAPPINGS[field][converted[field]]
 
