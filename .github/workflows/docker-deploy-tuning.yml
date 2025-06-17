@@ -58,7 +58,7 @@ jobs:
           else
             BRANCH="${{ github.ref_name }}"
           fi
-          
+         
           SANITIZED_BRANCH="${BRANCH//\//-}"
           SANITIZED_BRANCH=$(echo "$SANITIZED_BRANCH" | sed 's#[^a-zA-Z0-9_.-]#-#g')
           BRANCH="$SANITIZED_BRANCH"
@@ -172,7 +172,11 @@ jobs:
             echo "$VALUE" | while IFS= read -r line; do echo "::add-mask::$line"; done
             echo "$VALUE" > "$2"
           }
-          BRANCH="${{ github.ref_name }}"
+          if [ workflow_dispatch = "true" ]; then
+            BRANCH="${{ github.event.inputs.env }}"
+          else
+            BRANCH="${{ github.ref_name }}"
+          fi
           if [[ "$BRANCH" == "main" ]]; then
             echo "ENV=production" >> $GITHUB_ENV
             load_param "/global/gcp/PROD_GCP_HOST_AI" HOST
