@@ -5,7 +5,7 @@ on:
     types: [closed]
     branches:
       - develop
-    #  - main
+      - main
     paths:
       - 'app-tuning/**'
       - 'docker-compose.yml'
@@ -53,7 +53,12 @@ jobs:
       - name: Generate tags
         id: generate-tags
         run: |
-          BRANCH="${{ github.ref_name }}"
+          if [ workflow_dispatch = "true" ]; then
+            BRANCH="${{ github.event.inputs.env }}"
+          else
+            BRANCH="${{ github.ref_name }}"
+          fi
+          
           SANITIZED_BRANCH="${BRANCH//\//-}"
           SANITIZED_BRANCH=$(echo "$SANITIZED_BRANCH" | sed 's#[^a-zA-Z0-9_.-]#-#g')
           BRANCH="$SANITIZED_BRANCH"
