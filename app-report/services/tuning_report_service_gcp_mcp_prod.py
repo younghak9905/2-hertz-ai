@@ -239,7 +239,7 @@ async def research_agent(request: TuningReport) -> str:
             # search_response = await search_agent.ainvoke({"messages": search_messages})
             # 변경
             search_response = await safe_invoke_with_timeout(
-                search_agent, {"messages": search_messages}, timeout=30
+                search_agent, {"messages": search_messages}, timeout=120
             )
             logger.debug(f"Search response: {search_response}")
             # 검색 결과 추출
