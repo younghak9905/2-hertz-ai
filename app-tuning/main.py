@@ -31,7 +31,11 @@ register_exception_handlers(app)  # 반드시 포함
 # 라우터 등록 - API를 기능별로 모듈화
 app.include_router(HealthRouter().router)
 app.include_router(UserRouter().router)
-app.include_router(TuningRouter().router)
+app.include_router(UserRouter().router_v1)
+app.include_router(UserRouter().router_v2)
+app.include_router(UserRouter().router_v3)
+app.include_router(TuningRouter().router_v1)
+app.include_router(TuningRouter().router_v3)
 app.include_router(PerformanceRouter().router)
 
 
