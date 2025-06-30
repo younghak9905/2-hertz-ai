@@ -3,11 +3,11 @@ import json
 from fastapi import HTTPException
 from models.hyper_clover_loader import ModelSingleton
 from models.kcelectra_base_loader import get_model
-from schemas.chat_report_schema import ChatReportResponse
-from utils import logger
+from schemas.chat_report_schema import ChatReportRequest, ChatReportResponse
+from utils.logger import log_performance, logger
 
 
-@logger.log_performance(operation_name="handle_chat_report", include_memory=True)
+@log_performance(operation_name="handle_chat_report", include_memory=True)
 async def handle_chat_report_(message: str) -> ChatReportResponse:
     try:
         clova_model = ModelSingleton.get_instance()
@@ -17,27 +17,37 @@ async def handle_chat_report_(message: str) -> ChatReportResponse:
             for keyword in ["유해합니다", "제재 대상", "부적절", "비속어"]
         )
 
-        return ChatReportResponse(
-            message=message,
-            isToxic=isToxic,
-            # confidence=result.get(
-            #     "confidence", 0.9
-            # ),  # confidence 키가 없으면 기본값 사용
-        )
+        return ChatReportResponse(message=message, isToxic=isToxic)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@logger.log_performance(operation_name="handle_chat_report", include_memory=True)
-async def handle_chat_reports(message: str) -> ChatReportResponse:
+@log_performance(operation_name="handle_chat_report", include_memory=True)
+async def handle_chat_reports(body: ChatReportRequest) -> ChatReportResponse:
     try:
         model = get_model()
-        result = model(message)[0]
-        print(result)
+        result = model(body.messageContent)[0]
         label = result.get("label", "")
+        confidence_raw = result.get("score", "")
+        if confidence_raw != "":
+            confidence = round(float(confidence_raw), 4)
+        else:
+            confidence = 0.0  # 또는 None
 
-        is_toxic = label in ["LABEL_1", "toxic", "유해", "HATE", "NSFW", "bad"]
-        response = ChatReportResponse(message=message, isToxic=is_toxic)
+        mornitoring_yn = "Y" if confidence < 0.75 else "N"  # 모니터링 필요성
+
+        is_toxic = label != "LABEL_0"
+
+        response = ChatReportResponse(
+            code="CENSORED_SUCCESS",
+            data={
+                "result": is_toxic,
+                "label": label,
+                "confidence": confidence,
+                "monitoring": mornitoring_yn,
+            },
+        )
         return response
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

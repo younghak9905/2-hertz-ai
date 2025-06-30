@@ -22,4 +22,4 @@ router = APIRouter(prefix="/api/v3/chat", tags=["Chat Report"])
     description="신고 메시지와 사유를 바탕으로 제재 여부를 자동 판단합니다.",
 )
 async def judge_chat_report(body: ChatReportRequest):
-    return await handle_chat_report(body.messageContent)
+    return await handle_chat_report(body)

@@ -14,16 +14,12 @@ load_dotenv(override=True)
 
 # 💡 비속어 패턴 필터 (우회 표현 포함)
 BADWORD_PATTERNS = [
-    r"시[1일ilI]발",
-    r"씨[0-9]*발",
     r"\bㅅㅂ\b",
     r"\bㅂㅅ\b",
     r"\bㅗ\b",
     r"\bfuck\b",
     r"\bbitch\b",
     r"\basshole\b",
-    r"좆",
-    r"병신",
 ]
 
 
