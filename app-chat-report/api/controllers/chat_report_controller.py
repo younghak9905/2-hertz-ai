@@ -5,12 +5,25 @@ from services.chat_report_service import handle_chat_reports
 from utils.logger import logger
 
 
-async def handle_chat_report(messageContent: str) -> ChatReportResponse:
-    result = await handle_chat_reports(messageContent)
+async def handle_chat_report(body: ChatReportRequest) -> ChatReportResponse:
 
-    if isinstance(result, dict):
-        return ChatReportResponse(**result)
-    elif isinstance(result, ChatReportResponse):
+    result = await handle_chat_reports(body)
+
+    if isinstance(result, ChatReportResponse):
         return result
+
+    elif isinstance(result, dict):
+        try:
+            return ChatReportResponse(**result)
+        except Exception as e:
+            logger.exception(
+                "[handle_chat_report] Failed to unpack dict into ChatReportResponse"
+            )
+            raise HTTPException(status_code=500, detail="Invalid response format.")
+
     else:
-        raise HTTPException(status_code=500, detail=f"Invalid response type: {type(result)}")
+        logger.warning(f"[handle_chat_report] Unexpected result type: {type(result)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Invalid response type from handle_chat_reports: {type(result)}",
+        )

@@ -4,6 +4,7 @@ import traceback
 from typing import Dict, Optional, Union
 
 from fastapi import FastAPI, Request, status
+from fastapi.exceptions import HTTPException as FastAPIHTTPException
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
@@ -58,19 +59,14 @@ def register_exception_handlers(app: FastAPI) -> None:
         request: Request, exc: RequestValidationError
     ) -> JSONResponse:
         """요청 검증 예외 핸들러"""
-        error_details = []
-        for error in exc.errors():
-            loc = " -> ".join(str(item) for item in error["loc"])
-            error_details.append(f"{loc}: {error['msg']}")
 
-        error_message = ", ".join(error_details)
-        logger.error(f"Validation Error: {error_message}")
+        logger.error(f"Validation Error: {exc.errors()}")
 
         return JSONResponse(
             status_code=422,
             content={
                 "error": {
-                    "code": "BAD_REQUEST_VALIDATION_ERROR",
+                    "code": "CENSOR_BAD_REQUEST_VALIDATION_ERROR",
                     "message": "필수 필드 누락 또는 형식 오류",
                     "details": [
                         {
@@ -103,8 +99,16 @@ def register_exception_handlers(app: FastAPI) -> None:
         # 프로덕션 환경에서는 상세 오류를 노출하지 않음
         return JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            content={"code": "INTERNAL_SERVER_ERROR", "data": None},
+            content={"code": "CENSORED_INTERNAL_SERVER_ERROR", "data": None},
         )
+
+    # 추가: FastAPI의 예외도 별도로 등록
+    @app.exception_handler(FastAPIHTTPException)
+    async def fastapi_http_exception_handler(
+        request: Request, exc: FastAPIHTTPException
+    ) -> JSONResponse:
+        # 기존 Starlette 예외 핸들러와 동일하게 처리
+        return await http_exception_handler(request, exc)
 
 
 def _status_to_error_code(status_code: int) -> str:
@@ -118,7 +122,7 @@ def _status_to_error_code(status_code: int) -> str:
         에러 코드 문자열
     """
     if status_code == 400:
-        return "BAD_REQUEST"
+        return "CENSORED_BAD_REQUEST"
     elif status_code == 401:
         return "UNAUTHORIZED"
     elif status_code == 403:
@@ -132,24 +136,18 @@ def _status_to_error_code(status_code: int) -> str:
     elif status_code == 429:
         return "TOO_MANY_REQUESTS"
     elif status_code >= 500:
-        return "INTERNAL_SERVER_ERROR"
+        return "CENSORED_INTERNAL_SERVER_ERROR"
     else:
         return f"ERROR_{status_code}"
 
 
 def format_error_response(
-    error_code: str, message: Optional[str] = None, data: Optional[Dict] = None
+    error_code: str,
+    message: Optional[str] = None,
+    data: Optional[Dict] = None,
 ) -> Dict[str, Union[str, Dict, None]]:
     """
-    표준화된 에러 응답 생성
-
-    Args:
-        error_code: 에러 코드
-        message: 에러 메시지 (선택)
-        data: 추가 데이터 (선택)
-
-    Returns:
-        표준화된 에러 응답 딕셔너리
+    표준화된 에러 응답 딕셔너리 생성
     """
     response = {"code": error_code, "data": data if data is not None else None}
 
@@ -158,4 +156,4 @@ def format_error_response(
             response["data"] = {}
         response["data"]["message"] = message
 
-    return response
+    return response  # ❗ 딕셔너리만 반환

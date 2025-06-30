@@ -29,9 +29,9 @@ def _load_model():
     # app-tuning 디렉토리 기준으로 고정
     BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
-    # SENTENCE_TRANSFORMERS_HOME 환경변수 있으면 사용, 없으면 model-cache 기본 경로
+    # KCELECTRA_BASE_HOME 환경변수 있으면 사용, 없으면 model-cache 기본 경로
     MODEL_CACHE = os.environ.get(
-        "SENTENCE_TRANSFORMERS_HOME", os.path.join(BASE_DIR, "model-cache")
+        "KCELECTRA_BASE_HOME", os.path.join(BASE_DIR, "model-cache")
     )
 
     # 모델 최종 경로
