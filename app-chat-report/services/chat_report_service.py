@@ -60,7 +60,7 @@ async def handle_chat_reports(body: ChatReportRequest) -> ChatReportResponse:
             "label": label,
             "confidence": confidence,
             "monitoring": monitoring_yn,
-            "report_time": (datetime.now(datetime.timezone.utc) + timedelta(hours=9))
+            "report_time": (datetime.utcnow() + timedelta(hours=9))
             .replace(microsecond=0)
             .isoformat(),  # UTC + 9시간 (Seoul 시간)
         }
