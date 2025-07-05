@@ -5,10 +5,12 @@ SBERT 모델 로더 모듈
 """
 
 import os
+import subprocess
 from pathlib import Path
 
 import torch
 from transformers import AutoModelForSequenceClassification, AutoTokenizer, pipeline
+from utils.logger import logger
 
 
 # 모듈 임포트 시점에 바로 모델 초기화
@@ -37,28 +39,50 @@ def _load_model():
     # 모델 최종 경로
     MODEL_PATH = Path(MODEL_CACHE) / MODEL_DIR_NAME
 
-    # 모델 경로 존재 확인
+    # 모델 경로가 존재하지 않으면 다운로드 시도
     if not MODEL_PATH.exists():
-        raise FileNotFoundError(
-            f"모델 경로가 존재하지 않습니다: {MODEL_PATH}\n"
-            f"모델을 다운로드하려면 'scripts/download_model.py'를 실행하세요."
+        print(f"모델이 존재하지 않습니다: {MODEL_PATH}")
+        print("모델 다운로드를 시도합니다...")
+
+        try:
+            subprocess.run(["python", "scripts/download_model.py"], check=True)
+            logger.info("모델 다운로드가 완료되었습니다.")
+        except subprocess.CalledProcessError as e:
+            raise RuntimeError(
+                "모델 다운로드에 실패했습니다. 스크립트를 수동으로 실행해주세요: "
+                "'python scripts/download_model.py'"
+            ) from e
+
+        # 다운로드 후 다시 존재하는지 확인
+        if not MODEL_PATH.exists():
+            raise FileNotFoundError(
+                f"모델 다운로드 후에도 경로에 모델이 존재하지 않습니다: {MODEL_PATH}"
+            )
+
+    try:
+        # 모델 및 토크나이저 로드
+        logger.info(f"모델 로딩 중: {MODEL_PATH}")
+        model = AutoModelForSequenceClassification.from_pretrained(MODEL_PATH)
+        tokenizer = AutoTokenizer.from_pretrained(MODEL_PATH)
+        logger.info("모델 로딩 완료")
+
+        # pipeline 구성
+        pipe = pipeline(
+            "text-classification",
+            model=model,
+            tokenizer=tokenizer,
+            device=0 if torch.cuda.is_available() else -1,
         )
-    # 모델 및 토크나이저 로드
-    model = AutoModelForSequenceClassification.from_pretrained(MODEL_PATH)
-    tokenizer = AutoTokenizer.from_pretrained(MODEL_PATH)
 
-    # pipeline 구성
-    pipe = pipeline(
-        "text-classification",
-        model=model,
-        tokenizer=tokenizer,
-        device=0 if torch.cuda.is_available() else -1,
-    )
+        # 예열 (간단한 추론 한번 수행)
+        logger.info("모델 예열 중...")
+        _ = pipe("모델 예열용 텍스트")
+        logger.info("모델 예열 완료")
 
-    # 예열 (간단한 추론 한번 수행)
-    _ = pipe("모델 예열용 텍스트")
+        return pipe
 
-    return pipe
+    except Exception as e:
+        raise RuntimeError(f"모델 로딩 중 오류가 발생했습니다: {str(e)}") from e
 
 
 # 모듈 레벨에서 모델 초기화
