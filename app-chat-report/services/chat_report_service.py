@@ -1,10 +1,14 @@
-import json
+from datetime import datetime, timedelta, timezone
 
+from db.mongodb import mongodb
 from fastapi import HTTPException
 from models.hyper_clover_loader import ModelSingleton
 from models.kcelectra_base_loader import get_model
 from schemas.chat_report_schema import ChatReportRequest, ChatReportResponse
 from utils.logger import log_performance, logger
+
+# mongodb 인스턴스에서 컬렉션 가져오기
+chat_report_collection = mongodb.get_collection()
 
 
 @log_performance(operation_name="handle_chat_report", include_memory=True)
@@ -34,7 +38,7 @@ async def handle_chat_reports(body: ChatReportRequest) -> ChatReportResponse:
         else:
             confidence = 0.0  # 또는 None
 
-        mornitoring_yn = "Y" if confidence < 0.75 else "N"  # 모니터링 필요성
+        monitoring_yn = "Y" if confidence < 0.75 else "N"  # 모니터링 필요성
 
         is_toxic = label != "LABEL_0"
 
@@ -44,8 +48,28 @@ async def handle_chat_reports(body: ChatReportRequest) -> ChatReportResponse:
                 "result": is_toxic,
                 "label": label,
                 "confidence": confidence,
-                "monitoring": mornitoring_yn,
+                "monitoring": monitoring_yn,
             },
+        )
+
+        # MongoDB에 저장할 문서(Document) 생성
+        report_data = {
+            "messageId": body.messageId,
+            "messageContent": body.messageContent,
+            "result": is_toxic,
+            "label": label,
+            "confidence": confidence,
+            "monitoring": monitoring_yn,
+            "report_time": (datetime.now(datetime.timezone.utc) + timedelta(hours=9))
+            .replace(microsecond=0)
+            .isoformat(),  # UTC + 9시간 (Seoul 시간)
+        }
+
+        # MongoDB에 문서 삽입
+        chat_report_collection.insert_one(report_data)
+
+        logger.info(
+            f"Chat report processed: {body.messageId}, Result: {is_toxic}, Label: {label}, Confidence: {confidence}"
         )
         return response
 
