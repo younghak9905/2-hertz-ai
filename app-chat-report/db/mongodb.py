@@ -1,7 +1,9 @@
 import os
+from typing import Any, Dict
 
 import certifi
 from dotenv import load_dotenv
+from fastapi import HTTPException
 from pymongo import MongoClient
 from pymongo.errors import ConnectionFailure
 from utils.logger import logger
@@ -53,3 +55,22 @@ class MongoDB:
 
 # 전역 변수로 MongoDB 인스턴스 생성
 mongodb = MongoDB()
+
+
+# =================================================================
+# 데이터베이스 함수
+# =================================================================
+def save_report_to_db(report_data: Dict[str, Any]) -> None:
+    """MongoDB에 신고 데이터 저장"""
+    try:
+        chat_report_collection = mongodb.get_collection()
+        chat_report_collection.insert_one(report_data)
+        logger.info(
+            f"Chat report saved: {report_data['messageId']}, "
+            f"Result: {report_data['result']}, "
+            f"Label: {report_data['label']}, "
+            f"Confidence: {report_data['confidence']}"
+        )
+    except Exception as e:
+        logger.error(f"MongoDB save failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
