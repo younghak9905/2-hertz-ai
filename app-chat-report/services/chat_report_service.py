@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from enum import Enum
 from typing import Any, Dict, Optional
 
@@ -10,9 +10,7 @@ from models.kcelectra_base_loader import get_model
 from schemas.chat_report_schema import ChatReportRequest, ChatReportResponse
 from utils.logger import log_performance, logger
 
-# mongodb 인스턴스에서 컬렉션 가져오기
-chat_report_collection = mongodb.get_collection()
-
+message_filter_collection = mongodb.get_collection("message_filters")
 # =================================================================
 # 설정 및 상수
 # =================================================================
@@ -30,25 +28,7 @@ class ToxicityConfig:
 
     # 룰베이스 욕설 블랙리스트
     # 이 목록에 포함된 단어는 AI 모델을 거치지 않고 즉시 '유해'로 판단됩니다.
-    PROFANITY_BLACKLIST: frozenset = frozenset(
-        {
-            "병신",
-            "씨발",
-            "뒤질래",
-            "디질래",
-            "씹",
-            "지랄",
-            "염병",
-            "느금마",
-            "개새끼",
-            "새끼",
-            "개병신",
-            "좆같은",
-            "좆밥",
-            "병신새끼",
-            "병신같은",
-        }
-    )
+    PROFANITY_BLACKLIST: frozenset = frozenset()
 
 
 config = ToxicityConfig()
@@ -64,7 +44,6 @@ class ToxicityResult:
     label: str
     confidence: float
     monitoring_required: bool
-    detection_method: str  # "RULE_BASED" 또는 "AI_MODEL"
 
 
 # =================================================================
@@ -86,12 +65,29 @@ def should_monitor(confidence: float) -> bool:
     return confidence < config.CONFIDENCE_THRESHOLD
 
 
+async def get_active_profanity_words() -> frozenset[str]:
+    """MongoDB에서 활성화된 욕설 목록을 로드"""
+    try:
+        # Fetch only active words
+        cursor = message_filter_collection.find(
+            {"is_active": True}, {"word": 1, "_id": 0}
+        )
+        words = {doc["word"] for doc in await cursor.to_list(length=None)}
+        logger.info(f"Loaded {len(words)} active profanity words from DB.")
+        return frozenset(words)
+    except Exception as e:
+        logger.error(f"Failed to load profanity words from DB: {str(e)}")
+        # Fallback or raise error, depending on desired behavior
+        return frozenset()  # Return empty set to prevent errors, or raise HTTPException
+
+
 # =================================================================
 # 유해성 탐지 함수들
 # =================================================================
-def check_rule_based_toxicity(message: str) -> Optional[ToxicityResult]:
-    """룰베이스 욕설 검사"""
-    for profanity in config.PROFANITY_BLACKLIST:
+async def check_rule_based_toxicity(message: str) -> Optional[ToxicityResult]:
+    """룰베이스 욕설 검사 (MongoDB 연동)"""
+    active_profanity_words = await get_active_profanity_words()
+    for profanity in active_profanity_words:
         if profanity in message:
             logger.info(f"Rule-based detection triggered for word: {profanity}")
             return ToxicityResult(
@@ -99,7 +95,6 @@ def check_rule_based_toxicity(message: str) -> Optional[ToxicityResult]:
                 label=ToxicityLabel.RULE_BASED_PROFANITY.value,
                 confidence=1.0,
                 monitoring_required=False,
-                detection_method="RULE_BASED",
             )
     return None
 
@@ -122,17 +117,16 @@ def check_ai_model_toxicity(message: str) -> ToxicityResult:
             label=label,
             confidence=confidence,
             monitoring_required=monitoring_required,
-            detection_method="AI_MODEL",
         )
     except Exception as e:
         logger.error(f"AI model toxicity check failed: {str(e)}")
         raise HTTPException(status_code=500, detail=f"AI model error: {str(e)}")
 
 
-def analyze_toxicity(message: str) -> ToxicityResult:
+async def analyze_toxicity(message: str) -> ToxicityResult:
     """통합 유해성 분석 (룰베이스 + AI 모델)"""
     # 1차: 룰베이스 검사
-    rule_result = check_rule_based_toxicity(message)
+    rule_result = await check_rule_based_toxicity(message)
     if rule_result:
         return rule_result
 
@@ -196,7 +190,7 @@ async def handle_chat_reports(body: ChatReportRequest) -> ChatReportResponse:
     """완전한 채팅 신고 처리 (룰베이스 + AI 모델 + DB 저장)"""
     try:
         # 유해성 분석
-        toxicity_result = analyze_toxicity(body.messageContent)
+        toxicity_result = await analyze_toxicity(body.messageContent)
 
         # 데이터베이스 저장
         report_data = create_report_document(
