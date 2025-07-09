@@ -15,8 +15,6 @@ from core.vector_database import (
     get_user_collection,
 )
 from fastapi import HTTPException
-
-# from app.models.sbert_loader import model
 from models.sbert_loader import get_model
 from schemas.user_schema import EmbeddingRegister
 from utils import logger
@@ -534,11 +532,11 @@ async def register_user_v3(user: EmbeddingRegister) -> None:
         )
 
     try:
-
-        get_user_collection().add(
-            ids=[user_id], embeddings=[embedding], metadatas=[metadata]
-        )
         for category in ["friend", "couple"]:
+            get_user_collection().add(
+                ids=[user_id], embeddings=[embedding], metadatas=[metadata]
+            )
+
             update_similarity_for_users_v3(user_id, category=category)
     except Exception as e:
         # ❌ 유사도 저장 실패 → 사용자 등록/벡터 모두 삭제
@@ -561,7 +559,6 @@ async def register_user_v3(user: EmbeddingRegister) -> None:
 @logger.log_performance(operation_name="delete_user_v3", include_memory=True)
 def delete_user_metatdata_v3(user_id: int):
     try:
-
         clean_up_similarity_v3(user_id)
         delete_user_v3(user_id)
         return {"code": "EMBEDDING_DELETE_SUCCESS", "data": None}

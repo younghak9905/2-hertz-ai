@@ -9,7 +9,7 @@ SIMILARITY_COLLECTION_NAME = "user_similarities"
 FRIEND_SIMILARITY_COLLECTION_NAME = "friend_similarities"
 COUPLE_SIMILARITY_COLLECTION_NAME = "couple_similarities"
 COLLECTION_MAP = {
-    None: ("similarity", SIMILARITY_COLLECTION_NAME),
+    None: ("user_similarity", SIMILARITY_COLLECTION_NAME),
     "friend": ("friend_similarity", FRIEND_SIMILARITY_COLLECTION_NAME),
     "couple": ("couple_similarity", COUPLE_SIMILARITY_COLLECTION_NAME),
 }

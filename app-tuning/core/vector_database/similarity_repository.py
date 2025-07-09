@@ -140,7 +140,9 @@ def clean_up_similarity_v3(user_id: int) -> int:
         )
 
 
-async def get_similarities(category: str, user_id: Optional[str] = None):
+async def get_similarities(
+    category: Optional[str] = None, user_id: Optional[str] = None
+):
     """
     유사도 메타데이터 조회 (사용자 단일 조회 또는 전체 조회, 카테고리별)
 
