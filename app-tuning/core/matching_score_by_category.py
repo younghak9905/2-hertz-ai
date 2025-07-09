@@ -16,7 +16,7 @@ from typing import Dict, List
 
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
-from utils import logger
+from utils.logger import log_performance
 
 # ---------------------- 상수 정의 ----------------------
 # 모델 임베딩 차원 및 가중치 상수
@@ -288,7 +288,7 @@ def combine_embeddings(
     return 0.6 * norm_profile + 0.4 * norm_fields
 
 
-@logger.log_performance(operation_name="compute_matching_score", include_memory=True)
+@log_performance(operation_name="compute_matching_score", include_memory=True)
 def compute_matching_score(
     user_id: str,
     user_embedding: List[float],

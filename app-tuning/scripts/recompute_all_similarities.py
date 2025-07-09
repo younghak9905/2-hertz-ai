@@ -1,5 +1,10 @@
+import os
+import sys
 import traceback
 
+script_dir = os.path.dirname(__file__)
+project_root = os.path.abspath(os.path.join(script_dir, os.pardir))
+sys.path.insert(0, project_root)
 from core.matching_score_by_category import compute_matching_score
 from core.vector_database import get_user_collection
 from fastapi import HTTPException
@@ -18,13 +23,13 @@ def recompute_all_similarities(mode: str):
     """
     모든 유저 데이터를 한 번만 로드하여 유사도를 재계산합니다.
     """
-    print(f"✅ Recomputing {mode} similarities...")
+    logger.info(f"✅ Recomputing {mode} similarities...")
 
     # 1. 성능 개선: 모든 유저 정보를 한 번만 가져옵니다.
     try:
         all_users = get_user_collection().get(include=["embeddings", "metadatas"])
     except Exception as e:
-        print(f"[ERROR] Failed to fetch all users: {e}")
+        logger.error(f"[ERROR] Failed to fetch all users: {e}")
         return
 
     user_ids = all_users["ids"]
@@ -35,11 +40,11 @@ def recompute_all_similarities(mode: str):
             result = update_similarity_for_single_user(
                 user_id=user_id, category=mode, all_users_data=all_users
             )
-            print(
+            logger.info(
                 f"[{mode.upper()}] Updated: {user_id} with {result['updated_similarities']} matches"
             )
         except Exception as e:
-            print(f"[ERROR] {mode} similarity failed for {user_id}: {e}")
+            logger.info(f"[ERROR] {mode} similarity failed for {user_id}: {e}")
             traceback.print_exc()
 
 
@@ -85,7 +90,7 @@ def update_similarity_for_single_user(
 
     except Exception as e:
         # 에러 처리는 기존과 같이 유지
-        print(f"[SIMILARITY_UPDATE_ERROR] {e}")
+        logger.info(f"[SIMILARITY_UPDATE_ERROR] {e}")
         raise HTTPException(status_code=500, detail=...)
 
 

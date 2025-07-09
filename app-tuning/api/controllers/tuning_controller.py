@@ -66,7 +66,7 @@ async def get_tuning_matches_by_category(user_id: int, category: str) -> TuningR
         result = await get_matching_users_by_category(user_id, category)
 
         if not result:
-            return {"code": "TUNING_SUCCESS_BUT_NO_MATCH", "data": None}
+            return TuningResponse(code="TUNING_SUCCESS_BUT_NO_MATCH", data=None)
 
     except HTTPException:
         raise
