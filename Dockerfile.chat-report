@@ -41,7 +41,6 @@ ENV MODEL_NAME=jinkyeongk/kcELECTRA-toxic-detector
 # MODEL CACHE 경로 설정
 ENV KCELECTRA_BASE_HOME=./model-cache
 # MongoDB 연결 정보
-ENV MONGODB_CONNECTION_STRING=mongodb+srv://hertz:_4kMBZ.39GeJd7Z@cluster.saaqp0d.mongodb.net/?retryWrites=true&w=majority&appName=Cluster
 ENV MONGODB_DB_NAME=monitoring_db
 ENV MONGODB_DB_NAME_DEV=monitoring_db_dev
 
