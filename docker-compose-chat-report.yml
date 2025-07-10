@@ -13,7 +13,7 @@ services:
     cap_add:
       - SYS_PTRACE
     env_file:
-      - .env
+      - .chat.env
     environment:
       IS_PERSISTENT: "TRUE"
       UVICORN_WORKERS: "1"
