@@ -287,7 +287,7 @@ jobs:
 
             # 볼륨에 sentence-transformers 패키지 자동 설치 (없을 때만)
             PYLIBS_DIR="/home/deploy/app-pylibs"
-            if [ ! -d "$PYLIBS_DIR/sentence_transformers" && ! -d "$PYLIBS_DIR/accelerate" ]; then
+            if [ ! -d "$PYLIBS_DIR/sentence_transformers" || ! -d "$PYLIBS_DIR/accelerate" ]; then
               echo "📦 sentence-transformers 패키지가 없으므로 설치합니다..."
               mkdir -p "$PYLIBS_DIR"
               python3 -m pip install --upgrade pip
@@ -332,7 +332,7 @@ jobs:
 
             # ================== Health Check + 태그 기록 + 롤백 (Prod만) ==================
              # 최초 롤백 대비: 파일이 없으면 빈 파일 생성(최초 배포, 또는 수동 복구 대비)
-            [ -f last-successful-tag.txt ] || touch last-successful-tag.txt
+            [ -f last-successful-tag.txt ] || -f touch last-successful-tag.txt ]
             echo "🔍 API 서비스 헬스체크 중..."
             for i in {1..5}; do
              if curl -sf http://localhost:8000/api/v1/health; then
