@@ -3,9 +3,7 @@ version: '3.8'
 services:
   # FastAPI 앱 서비스 (Dockerfile.chat-report 에서 빌드)
   chat-report:
-    build:
-      context: . # docker-compose.yml 위치 기준 컨텍스트
-      dockerfile: Dockerfile.chat-report
+    image: ${FULL_IMAGE}
     container_name: chat-report
     restart: always
     ports:
@@ -13,7 +11,7 @@ services:
     cap_add:
       - SYS_PTRACE
     env_file:
-      - .chat.env
+      - .env
     environment:
       IS_PERSISTENT: "TRUE"
       UVICORN_WORKERS: "1"
