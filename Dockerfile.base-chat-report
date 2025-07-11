@@ -32,7 +32,14 @@ ENV PYTHONUNBUFFERED=1 \
     MKL_NUM_THREADS=1 \
     NUMEXPR_NUM_THREADS=1 \
     OPENBLAS_NUM_THREADS=1 \
-    LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libjemalloc.so.2 
+    LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libjemalloc.so.2 \
+    ENVIRONMENT=prod \
+    ALLOW_RESET=false \
+    MODEL_NAME=jinkyeongk/kcELECTRA-toxic-detector \
+    KCELECTRA_BASE_HOME=./model-cache \
+    MONGODB_DB_NAME=monitoring_db \
+    MONGODB_DB_NAME_DEV=monitoring_db_dev 
+
 EXPOSE 8000
 
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]

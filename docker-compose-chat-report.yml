@@ -13,9 +13,10 @@ services:
     env_file:
       - .env
     environment:
-      IS_PERSISTENT: "TRUE"
-      UVICORN_WORKERS: "1"
-      TOKENIZERS_PARALLELISM: "false"
+      - IS_PERSISTENT=TRUE
+      - UVICORN_WORKERS=1
+      - TOKENIZERS_PARALLELISM=false
+      - /home/deploy/app-pylibs:/app/extlibs
     volumes:
       - /home/deploy/app-pylibs:/app/extlibs
       - tuning_logs:/app/logs
