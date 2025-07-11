@@ -16,7 +16,7 @@ services:
       - IS_PERSISTENT=TRUE
       - UVICORN_WORKERS=1
       - TOKENIZERS_PARALLELISM=false
-      - /home/deploy/app-pylibs:/app/extlibs
+      - PYTHONPATH=/app:/app/extlibs
     volumes:
       - /home/deploy/app-pylibs:/app/extlibs
       - tuning_logs:/app/logs
