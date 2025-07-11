@@ -6,11 +6,10 @@
 
 
 import os
+from contextlib import asynccontextmanager
 
-from api.endpoints.health_router import HealthRouter
-from api.endpoints.monitoring_router import PerformanceRouter
-from api.endpoints.tuning_router import TuningRouter
-from api.endpoints.user_router import UserRouter
+from api.endpoints.chat_report_router import router as chat_report_router
+from db.mongodb import mongodb  # mongodb 인스턴스 임포트
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import RedirectResponse
@@ -19,24 +18,30 @@ from utils.error_handler import register_exception_handlers
 # .env 파일에서 환경 변수 로드
 load_dotenv()
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # 앱 시작 시 실행
+    # (db/mongodb.py에서 이미 연결은 초기화됨)
+    yield
+    # 앱 종료 시 실행
+    mongodb.close()
+
+
+# --- FastAPI 애플리케이션 설정 ---
+
 # FastAPI 앱 인스턴스 생성 (Swagger UI 문서에 표시될 메타데이터 포함)
 app = FastAPI(
-    title="TUNING API",
+    lifespan=lifespan,
+    title="TUNING Chat Report API",
     description="조직 내부 사용자 간의 자연스럽고 부담 없는 소통을 돕는 소셜 매칭 서비스 API",
     version="1.0.0",
 )
 
-register_exception_handlers(app)  # 반드시 포함
+register_exception_handlers(app)
 
-# 라우터 등록 - API를 기능별로 모듈화
-app.include_router(HealthRouter().router)
-app.include_router(UserRouter().router)
-app.include_router(UserRouter().router_v1)
-app.include_router(UserRouter().router_v2)
-app.include_router(UserRouter().router_v3)
-app.include_router(TuningRouter().router_v1)
-app.include_router(TuningRouter().router_v3)
-app.include_router(PerformanceRouter().router)
+# 라우터 등록
+app.include_router(chat_report_router)
 
 
 # 루트 경로 핸들러 - 개발 환경에서는 API 문서(Swagger)로 리다이렉트, 프로덕션에서는 접근 제한

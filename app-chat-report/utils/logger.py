@@ -11,32 +11,34 @@ from typing import Any, Callable, Dict, Optional
 
 import psutil
 
-# 로거 설정
-logger = logging.getLogger("tuning_performance")
-formatter = logging.Formatter("%(asctime)s [%(levelname)s] %(message)s")
-
-# 콘솔 핸들러
-console_handler = logging.StreamHandler()
-console_handler.setFormatter(formatter)
-logger.addHandler(console_handler)
-
-# 파일 핸들러 (logs 디렉토리에 성능 로그 저장)
-os.makedirs("logs", exist_ok=True)
-file_handler = logging.FileHandler(
-    f"logs/performance_{datetime.now().strftime('%Y%m%d')}.log"
+# 1. 포맷터 먼저 정의
+formatter = logging.Formatter(
+    "[%(asctime)s] [%(levelname)s] %(name)s: %(message)s", datefmt="%Y-%m-%d %H:%M:%S"
 )
-file_handler.setFormatter(formatter)
-logger.addHandler(file_handler)
 
+# 2. 로거 생성
+logger = logging.getLogger("chat_report")
 logger.setLevel(logging.INFO)
-logger.propagate = False  # 부모 로거로 메시지 전파 중단
+
+# 3. 중복 핸들러 방지
+if not logger.hasHandlers():
+    # 콘솔 핸들러
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(formatter)
+    logger.addHandler(console_handler)
+
+    # 파일 핸들러
+    os.makedirs("logs", exist_ok=True)
+    file_handler = logging.FileHandler(
+        f"logs/performance_{datetime.now().strftime('%Y%m%d')}.log"
+    )
+    file_handler.setFormatter(formatter)
+    logger.addHandler(file_handler)
+
 
 # 성능 지표 컬렉션 (간단한 인메모리 저장소)
 performance_metrics = {
     "api_response_times": {},
-    "embedding_generation_times": [],
-    "similarity_calculation_times": [],
-    "db_operation_times": {},
     "error_counts": {},
     "memory_usage_samples": [],
     "memory_usage_by_function": {},
@@ -58,51 +60,33 @@ def log_performance(operation_name: Optional[str] = None, include_memory: bool =
             # 작업 이름 결정
             op_name = operation_name or func.__name__
 
-            # 유저 ID 추출 시도
+            # message ID 추출 시도
             bound_args = signature(func).bind(*args, **kwargs)
             bound_args.apply_defaults()
 
-            user_id = (
-                kwargs.get("user_id")
-                or kwargs.get("userId")
-                or (args[0] if args and isinstance(args[0], (str, int)) else None)
-            )
+            # messageId 추출 시도
+            message_id = "unknown"
+            for arg in bound_args.arguments.values():
+                if isinstance(arg, str):
+                    try:
+                        import json
 
-            # 객체나 딕셔너리 내부 속성에서 추출
-            if not user_id:
-                for arg in bound_args.arguments.values():
-                    if isinstance(arg, dict):
-                        user_id = arg.get("user_id") or arg.get("userId")
-                    elif hasattr(arg, "user_id"):
-                        user_id = getattr(arg, "user_id")
-                    elif hasattr(arg, "userId"):
-                        user_id = getattr(arg, "userId")
-                    if user_id:
-                        break
-
-            user_id = str(user_id) if user_id is not None else "unknown"
-            # 카테고리 추출 시도 (파라미터로 지정된 경우 우선 사용)
-            extracted_category = None
-            if not extracted_category:
-                # 1. kwargs에서 직접 추출
-                extracted_category = kwargs.get("category")
-
-                # 2. bound_args에서 category 파라미터 추출
-                if not extracted_category and "category" in bound_args.arguments:
-                    extracted_category = bound_args.arguments["category"]
-
-                # 3. 객체나 딕셔너리 내부 속성에서 추출
-                if not extracted_category:
-                    for arg in bound_args.arguments.values():
-                        if isinstance(arg, dict):
-                            extracted_category = arg.get("category")
-                        elif hasattr(arg, "category"):
-                            extracted_category = getattr(arg, "category")
-                        if extracted_category:
-                            break
-            category_info = (
-                f", category={extracted_category}" if extracted_category else ""
-            )
+                        parsed = json.loads(arg)
+                        message_id = parsed.get("messageId", message_id)
+                        if "messageId" in parsed:
+                            message_id = parsed["messageId"]
+                    except json.JSONDecodeError:
+                        pass
+                elif isinstance(arg, dict):
+                    message_id = arg.get("messageId", message_id)
+                elif hasattr(arg, "messageId"):
+                    message_id = getattr(arg, "messageId", message_id)
+                elif hasattr(arg, "dict"):
+                    try:
+                        parsed = arg.dict()
+                        message_id = parsed.get("messageId", message_id)
+                    except Exception:
+                        pass
 
             # 초기 메모리 사용량
             if include_memory:
@@ -136,7 +120,7 @@ def log_performance(operation_name: Optional[str] = None, include_memory: bool =
 
                 # 성능 정보 로깅
                 logger.info(
-                    f"PERF: {op_name} completed in {elapsed}s [userId={user_id}{category_info}{result_info}{memory_info}]"
+                    f"PERF: {op_name} completed in {elapsed}s [messageId={message_id}{result_info}{memory_info}]"
                 )
 
                 # 메트릭 저장
@@ -150,7 +134,7 @@ def log_performance(operation_name: Optional[str] = None, include_memory: bool =
                 # 오류 정보 로깅
                 error_type = type(e).__name__
                 logger.error(
-                    f"PERF-ERROR: {op_name} failed after {elapsed}s [userId={user_id}{category_info}, error_type={error_type}]"
+                    f"PERF-ERROR: {op_name} failed after {elapsed}s [messageId={message_id}, error_type={error_type}]"
                 )
 
                 # 오류 카운트 증가
@@ -168,52 +152,33 @@ def log_performance(operation_name: Optional[str] = None, include_memory: bool =
         def sync_wrapper(*args, **kwargs) -> Any:
             # 작업 이름 결정
             op_name = operation_name or func.__name__
-
+            # message ID 추출 시도
             bound_args = signature(func).bind(*args, **kwargs)
             bound_args.apply_defaults()
-            # 유저 ID 추출 시도
-            user_id = (
-                kwargs.get("user_id")
-                or kwargs.get("userId")
-                or (args[0] if args and isinstance(args[0], (str, int)) else None)
-            )
 
-            # 객체 속성 탐색
-            if not user_id:
-                for arg in bound_args.arguments.values():
-                    if isinstance(arg, dict) and ("user_id" in arg or "userId" in arg):
-                        user_id = arg.get("user_id") or arg.get("userId")
-                        break
-                    if hasattr(arg, "user_id"):
-                        user_id = getattr(arg, "user_id")
-                        break
-                    if hasattr(arg, "userId"):
-                        user_id = getattr(arg, "userId")
-                        break
+            # messageId 추출 시도
+            message_id = "unknown"
+            for arg in bound_args.arguments.values():
+                if isinstance(arg, str):
+                    try:
+                        import json
 
-            user_id = str(user_id) if user_id is not None else "unknown"
-            # 카테고리 추출 시도 (파라미터로 지정된 경우 우선 사용)
-            extracted_category = None
-            if not extracted_category:
-                # 1. kwargs에서 직접 추출
-                extracted_category = kwargs.get("category")
+                        parsed = json.loads(arg)
+                        if "messageId" in parsed:
+                            message_id = parsed["messageId"]
+                    except json.JSONDecodeError:
+                        pass
+                elif isinstance(arg, dict):
+                    message_id = arg.get("messageId", message_id)
+                elif hasattr(arg, "messageId"):
+                    message_id = getattr(arg, "messageId", message_id)
+                elif hasattr(arg, "dict"):
+                    try:
+                        parsed = arg.dict()
+                        message_id = parsed.get("messageId", message_id)
+                    except Exception:
+                        pass
 
-                # 2. bound_args에서 category 파라미터 추출
-                if not extracted_category and "category" in bound_args.arguments:
-                    extracted_category = bound_args.arguments["category"]
-
-                # 3. 객체나 딕셔너리 내부 속성에서 추출
-                if not extracted_category:
-                    for arg in bound_args.arguments.values():
-                        if isinstance(arg, dict):
-                            extracted_category = arg.get("category")
-                        elif hasattr(arg, "category"):
-                            extracted_category = getattr(arg, "category")
-                        if extracted_category:
-                            break
-            category_info = (
-                f", category={extracted_category}" if extracted_category else ""
-            )
             # 초기 메모리 사용량
             if include_memory:
                 initial_memory = _get_memory_usage()
@@ -244,9 +209,10 @@ def log_performance(operation_name: Optional[str] = None, include_memory: bool =
                     performance_metrics["memory_usage_by_function"][op_name].append(
                         final_memory
                     )
+
                 # 성능 정보 로깅
                 logger.info(
-                    f"PERF: {op_name} completed in {elapsed}s [userId={user_id}{category_info}{result_info}{memory_info}]"
+                    f"PERF: {op_name} completed in {elapsed}s [messageId={message_id}{result_info}{memory_info}]"
                 )
 
                 # 메트릭 저장
@@ -260,7 +226,7 @@ def log_performance(operation_name: Optional[str] = None, include_memory: bool =
                 # 오류 정보 로깅
                 error_type = type(e).__name__
                 logger.error(
-                    f"PERF-ERROR: {op_name} failed after {elapsed}s [userId={user_id}{category_info}, error_type={error_type}]"
+                    f"PERF-ERROR: {op_name} failed after {elapsed}s [messageId={message_id}, error_type={error_type}]"
                 )
 
                 # 오류 카운트 증가
@@ -339,25 +305,6 @@ def log_db_operation(operation_type: str, collection_name: str) -> Callable:
     return decorator
 
 
-def log_embedding_generation(
-    field_count: int, vector_size: int, elapsed: float
-) -> None:
-    """
-    임베딩 생성 성능 로깅
-
-    Args:
-        field_count: 임베딩 생성에 사용된 필드 수
-        vector_size: 생성된 벡터의 크기
-        elapsed: 경과 시간(초)
-    """
-    logger.info(
-        f"EMBEDDING: Generated {field_count} fields in {elapsed:.3f}s, vector_size={vector_size}"
-    )
-    performance_metrics["embedding_generation_times"].append(
-        {"field_count": field_count, "vector_size": vector_size, "time": elapsed}
-    )
-
-
 def log_similarity_calculation(
     user_id: str, total_users: int, match_count: int, elapsed: float
 ) -> None:
@@ -424,36 +371,6 @@ def get_performance_summary() -> Dict[str, Any]:
                     ),
                 }
 
-    # 임베딩 생성 시간 요약
-    if performance_metrics["embedding_generation_times"]:
-        times = [
-            item["time"] for item in performance_metrics["embedding_generation_times"]
-        ]
-        summary["embedding_generation"] = {
-            "count": len(times),
-            "avg_time": statistics.mean(times) if times else 0,
-            "avg_fields": (
-                statistics.mean(
-                    [
-                        item["field_count"]
-                        for item in performance_metrics["embedding_generation_times"]
-                    ]
-                )
-                if times
-                else 0
-            ),
-            "avg_vector_size": (
-                statistics.mean(
-                    [
-                        item["vector_size"]
-                        for item in performance_metrics["embedding_generation_times"]
-                    ]
-                )
-                if times
-                else 0
-            ),
-        }
-
     # 유사도 계산 시간 요약
     if performance_metrics["similarity_calculation_times"]:
         times = [
@@ -477,18 +394,6 @@ def get_performance_summary() -> Dict[str, Any]:
                 else 0
             ),
         }
-
-    # DB 작업 시간 요약
-    if performance_metrics["db_operation_times"]:
-        summary["db_operations"] = {}
-        for op_key, times in performance_metrics["db_operation_times"].items():
-            if times:
-                summary["db_operations"][op_key] = {
-                    "count": len(times),
-                    "avg": statistics.mean(times),
-                    "min": min(times),
-                    "max": max(times),
-                }
 
     # 오류 카운트 요약
     if performance_metrics["error_counts"]:
@@ -550,14 +455,28 @@ def _extract_result_info(result: Any) -> str:
     결과 객체에서 유용한 정보를 추출
     """
     info = ""
-    if isinstance(result, dict):
-        if "matchedUserCount" in result:
-            info += f", matches={result['matchedUserCount']}"
-        if "time_taken_seconds" in result:
-            info += f", reported_time={result['time_taken_seconds']}s"
-        if "updated_similarities" in result:
-            info += f", similarities={result['updated_similarities']}"
+    try:
+        if isinstance(result, dict) and "data" in result:
+            data = result["data"]
+        elif hasattr(result, "data"):
+            data = result.data
+        else:
+            data = {}
 
+        if isinstance(data, dict):
+            label = data.get("label")
+            confidence = data.get("confidence")
+            monitoring = data.get("monitoring")
+
+            if label is not None:
+                info += f", label={label}"
+            if confidence is not None:
+                info += f", confidence={confidence}"
+            if monitoring is not None:
+                info += f", monitoring={monitoring}"
+
+    except Exception as e:
+        logger.warning(f"[extract_result_info] 실패: {e}")
     return info
 
 
