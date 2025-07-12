@@ -260,6 +260,13 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           envs: ENV,FULL_IMAGE,IMAGE_TAG,AWS_REGION,ECR_REGISTRY,AWS_ACCESS_KEY_ID,AWS_SECRET_ACCESS_KEY
           script: |
+            # 필수 도구 (aws-cli, python3-pip) 설치 확인 및 설치
+            if ! command -v aws &> /dev/null || ! command -v pip3 &> /dev/null; then
+              echo "⏳ 필수 도구가 없습니다. 설치를 시도합니다... (sudo 권한 필요)"
+              sudo apt-get update -y
+              sudo apt-get install -y awscli python3-pip
+            fi
+
             echo "=== 환경변수 확인 ==="
             echo "ENV: $ENV"
             echo "IMAGE_TAG: $IMAGE_TAG"
@@ -287,8 +294,8 @@ jobs:
             if [ ! -d "$PYLIBS_DIR/sentence_transformers" ]; then
               echo "📦 sentence-transformers 패키지가 없으므로 설치합니다..."
               mkdir -p "$PYLIBS_DIR"
-              pip install --upgrade pip
-              pip install --target="$PYLIBS_DIR" sentence-transformers==4.1.0
+              python3 -m pip install --upgrade pip
+              python3 -m pip install --target="$PYLIBS_DIR" sentence-transformers==4.1.0
             else
               echo "✅ sentence-transformers 패키지가 이미 존재합니다."
             fi

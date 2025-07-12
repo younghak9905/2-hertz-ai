@@ -14,7 +14,7 @@ services:
       - CHROMA_PORT=8001
       - CHROMA_MODE=server
       - TOKENIZERS_PARALLELISM=false
-      - /home/deploy/app-pylibs:/app/extlibs
+      - PYTHONPATH=/app/extlibs:${PYTHONPATH}
     volumes:
       - /home/deploy/app-pylibs:/app/extlibs
       - tuning_logs:/app/logs
