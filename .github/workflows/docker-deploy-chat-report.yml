@@ -7,9 +7,10 @@ on:
       - develop
       - main
     paths:
-      - 'app-report/**'
+      - 'app-chat-report/**'
       - 'docker-compos-chat-report.yml'
       - 'Dockerfile.chat-report'
+      - 'Dockerfile.base-chat-report'
       - '.github/workflows/docker-deploy-chat-report.yml'
   workflow_dispatch:
     inputs:
@@ -114,13 +115,13 @@ jobs:
             -d "{\"username\": \"Chat-Report CI\", \"content\": \"✅ [신고 API CI 성공] **${{ steps.generate-tags.outputs.branch }}** 브랜치\\n🔖 태그: ${{ steps.generate-tags.outputs.image_tag }}\\n🆔 Commit: ${{ steps.generate-tags.outputs.short_sha }}\\n📦 이미지: ${{ steps.generate-tags.outputs.full_image }}\"}" \
             ${{ secrets.DISCORD_WEBHOOK_CICD_URL }}
 
-      - name: Send failure notification
-        if: failure()
-        run: |
-          curl -H "Content-Type: application/json" \
-            -X POST \
-            -d "{\"username\": \"Chat-Report\", \"content\": \"❌ [신고 API CI 실패] **${{ github.base_ref }}** 브랜치\\n🔖 Commit: ${{ github.sha }}\\n⚠️ 원인: 빌드 또는 테스트 실패\"}" \
-            ${{ secrets.DISCORD_WEBHOOK_CICD_URL }}
+    #   - name: Send failure notification
+    #     if: failure()
+    #     run: |
+    #       curl -H "Content-Type: application/json" \
+    #         -X POST \
+    #         -d "{\"username\": \"Chat-Report\", \"content\": \"❌ [신고 API CI 실패] **${{ github.base_ref }}** 브랜치\\n🔖 Commit: ${{ github.sha }}\\n⚠️ 원인: 빌드 또는 테스트 실패\"}" \
+    #         ${{ secrets.DISCORD_WEBHOOK_CICD_URL }}
 
     outputs:
       branch: ${{ steps.generate-tags.outputs.branch }}
@@ -287,7 +288,7 @@ jobs:
 
             # 볼륨에 sentence-transformers 패키지 자동 설치 (없을 때만)
             PYLIBS_DIR="/home/deploy/app-pylibs"
-            if [ ! -d "$PYLIBS_DIR/sentence_transformers" || ! -d "$PYLIBS_DIR/accelerate" ]; then
+            if [ ! -d "$PYLIBS_DIR/transformers" ] || [ ! -d "$PYLIBS_DIR/accelerate" ]; then
               echo "📦 sentence-transformers 패키지가 없으므로 설치합니다..."
               mkdir -p "$PYLIBS_DIR"
               python3 -m pip install --upgrade pip
@@ -332,7 +333,7 @@ jobs:
 
             # ================== Health Check + 태그 기록 + 롤백 (Prod만) ==================
              # 최초 롤백 대비: 파일이 없으면 빈 파일 생성(최초 배포, 또는 수동 복구 대비)
-            [ -f last-successful-tag.txt ] || -f touch last-successful-tag.txt ]
+            [ -f last-successful-tag.txt ] || touch last-successful-tag.txt
             echo "🔍 API 서비스 헬스체크 중..."
             for i in {1..5}; do
              if curl -sf http://localhost:8000/api/v1/health; then
@@ -369,20 +370,20 @@ jobs:
             #실패
             exit 1
 
-      # 8. 성공/실패 알림
-      - name: Send success notification
-        if: success()
-        run: |
-          curl -H "Content-Type: application/json" \
-            -X POST \
-            -d "{\"content\": \"✅ [신고 API CD 성공] **${{ env.ENV }}** 환경 배포 완료\\n🔖 이미지: ${{ env.FULL_IMAGE }}\\n⚙️ \"}" \
-            ${{ secrets.DISCORD_WEBHOOK_CICD_URL }}
+    #   # 8. 성공/실패 알림
+    #   - name: Send success notification
+    #     if: success()
+    #     run: |
+    #       curl -H "Content-Type: application/json" \
+    #         -X POST \
+    #         -d "{\"content\": \"✅ [신고 API CD 성공] **${{ env.ENV }}** 환경 배포 완료\\n🔖 이미지: ${{ env.FULL_IMAGE }}\\n⚙️ \"}" \
+    #         ${{ secrets.DISCORD_WEBHOOK_CICD_URL }}
 
-      - name: Send failure notification
-        if: failure()
-        run: |
-          WORKFLOW_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-          curl -H "Content-Type: application/json" \
-            -X POST \
-            -d "{\"content\": \"❌ [신고 API CD 실패] **${{ env.ENV }}** 환경 배포 실패\\n🔖 이미지: ${{ env.FULL_IMAGE }}\\n⚠️ 원인: API 배포 과정 중 오류 발생\\n🔗 [워크플로우 로그]($WORKFLOW_URL)\"}" \
-            ${{ secrets.DISCORD_WEBHOOK_CICD_URL }}
+    #   - name: Send failure notification
+    #     if: failure()
+    #     run: |
+    #       WORKFLOW_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+    #       curl -H "Content-Type: application/json" \
+    #         -X POST \
+    #         -d "{\"content\": \"❌ [신고 API CD 실패] **${{ env.ENV }}** 환경 배포 실패\\n🔖 이미지: ${{ env.FULL_IMAGE }}\\n⚠️ 원인: API 배포 과정 중 오류 발생\\n🔗 [워크플로우 로그]($WORKFLOW_URL)\"}" \
+    #         ${{ secrets.DISCORD_WEBHOOK_CICD_URL }}
