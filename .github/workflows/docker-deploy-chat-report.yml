@@ -336,7 +336,7 @@ jobs:
             [ -f last-successful-tag.txt ] || touch last-successful-tag.txt
             echo "🔍 API 서비스 헬스체크 중..."
             for i in {1..5}; do
-             if curl -sf http://localhost:8000/api/v1/health; then
+             if curl -sf http://localhost:8000/docs; then
                 echo "✅ API 서비스가 정상적으로 시작되었습니다."
                 echo "$IMAGE_TAG" > last-successful-tag.txt
                 exit 0
